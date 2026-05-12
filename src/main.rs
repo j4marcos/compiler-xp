@@ -1,5 +1,7 @@
 use std::env;
 use std::fs;
+use std::fs::File;
+use std::io::Write;
 use std::ops::Not;
 
 fn main() {
@@ -10,8 +12,11 @@ fn main() {
     // validate_code(&source_code);
     let number: i32 = extract_number(&source_code);
 
-    // println!("{:?}", number);
-    println!("{}", ASSEMBLY.replace("{NUMBER}", &number.to_string()));
+    let target_code: String = ASSEMBLY.replace("{NUMBER}", &number.to_string());
+    const OUTPUT_PATH: &str = "target_code";
+    let mut file = File::create(OUTPUT_PATH).expect("Error creating file");
+    file.write_all(target_code.as_bytes())
+        .expect("Error writing file");
 }
 
 // fn validate_code(code: &str) {}
@@ -36,7 +41,7 @@ const ASSEMBLY: &str = r#"
 .section .text
 .globl _start
 _start:
-mov rdi, {NUMBER} ## saida do compilador deve ser inserida aqui
+mov ${NUMBER}, %rax 
 call imprime_num
 call sair
 .include "runtime.s"
