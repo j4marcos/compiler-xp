@@ -1,4 +1,4 @@
-compilador em rust com cargo
+compilador em rust 
 aluno: 20230013339 - João Marcos Cunha Santos
 
 
@@ -7,14 +7,14 @@ aluno: 20230013339 - João Marcos Cunha Santos
 - test rust 
 cargo run -- 25 05 20 26
 
-- test asselmbly
+- test assembly
 cd /assembly
 as --64 zeller.s -o zeller.o 
 ld zeller.o -o zeller
 ./zeller 
 
 
--> traduzir texto de numero inteiro para codigo objeto assembly
+<!-- -> traduzir texto de numero inteiro para codigo objeto assembly
 
 - test success:
 cargo run source_code
@@ -24,4 +24,4 @@ ld -o code_exe code_exe.o
 
 - test error:
 cargo run source_code-error
-
+ -->
