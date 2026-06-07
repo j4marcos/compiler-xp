@@ -1,8 +1,9 @@
 
-Compilador em Rust
+Compiler-xp - experimental compiler in rust
 ===================
 
 Grupo: 20230013339 — João Marcos Cunha Santos
+Repositorio: https://github.com/j4marcos/compiler-xp.git
 
 Visão geral
 -----------
