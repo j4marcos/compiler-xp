@@ -1,7 +1,8 @@
 use std::env;
 use std::fs;
-mod zeller;
-mod tokenize;
+// mod zeller;
+mod lexical;
+mod syntax;
 
 fn main() {
     tokenize_source_code()
@@ -13,8 +14,10 @@ fn tokenize_source_code() {
         .expect("Please provide the source code file path as argument.");
 
     let source_code: String = fs::read_to_string(arg).expect("Error reading file");
-    let tokens = tokenize::extract_tokens(&source_code);
-    println!("{}", tokens);
+    let tokens = lexical::extract_tokens(&source_code);
+    let expression = syntax::extract_expression(tokens);
+    println!("result tree: {}", expression);
+    
 }
 
 

@@ -1,11 +1,20 @@
 use std::fmt;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-struct Token {
-    class: TokenClass,
+pub struct Token {
+    pub class: TokenClass,
     lexema: String,
     column: usize,
     line: usize,
+}
+
+impl Token {
+    pub fn get_value(self) -> Option<i32> {
+        return match self.class {
+            TokenClass::Number => Some(self.lexema.parse::<i32>().expect("Number token expected to parse into i32")),
+            _ => None,
+        };
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -15,7 +24,7 @@ enum TokenLength {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum TokenClass {
+pub enum TokenClass {
     Number,
     LeftParentheses,
     RightParentheses,
@@ -58,6 +67,10 @@ pub struct TokenList {
 }
 
 impl TokenList {
+    pub fn get_tokens(self) -> Vec<Token> {
+        return self.tokens.clone();
+    }
+
     fn push_token(&mut self, class: TokenClass, c: char, column: usize, line: usize) {
         self.tokens.push(Token {
             class,
@@ -109,7 +122,10 @@ impl fmt::Display for TokenList {
 }
 
 fn handle_invalid_token(c: char, column: usize, line: usize) {
-    eprintln!("Error: invalid character '{}' at {}:{}", c, line, column);
+    eprintln!(
+        "Error lexical: invalid character '{}' at {}:{}",
+        c, line, column
+    );
     std::process::exit(1);
 }
 
@@ -118,7 +134,7 @@ pub fn extract_tokens(text: &String) -> TokenList {
     let mut current_line = 1;
     let mut current_column: usize = 1;
 
-    for (index, c) in text.char_indices() {
+    for c in text.chars() {
         if c == '\n' {
             current_line += 1;
             current_column = 0;
