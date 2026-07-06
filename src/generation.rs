@@ -3,7 +3,8 @@ use crate::syntax::*;
 const INITIAL_TEMPLATE: &str = r#"
 .section .text
 .globl _start
-_start:
+_start: 
+
 {}
 pop %rax
 call imprime_num

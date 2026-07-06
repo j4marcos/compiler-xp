@@ -17,10 +17,9 @@ fn compile_source_code() {
     let tokens = lexical::extract_tokens(&source_code);
     let expression = syntax::extract_expression(tokens);
     let assembly = generation::generate_assembly(expression);
-    // println!("{}", &assembly);
+    print!("{}", assembly);
     let output_path = "output/target_code.s";
-    // println!("assembly generated at: {}", output_path );
-    fs::write(output_path, assembly).expect("Error wrinting assembly");
+    fs::write(output_path, assembly).expect("Error wrinting assembly file");
 }
 
 

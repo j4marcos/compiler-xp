@@ -1,7 +1,8 @@
 
 .section .text
 .globl _start
-_start:
+_start: 
+
 push $7 
 push $5 
 pop %rbx 

@@ -157,6 +157,5 @@ fn get_expression(tokens: &mut VecDeque<Token>) -> Expression {
 pub fn extract_expression(tokens_list: TokenList) -> Expression {
     let mut tokens_queue = VecDeque::from(tokens_list.get_tokens());
     let result = get_expression_addition(&mut tokens_queue);
-    print!("{}", result);
     return result;
 }
