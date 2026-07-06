@@ -17,9 +17,17 @@ Compilador lê a expressão aritmética de um arquivo de entrada e gera o códig
 
 imprime o resultado no terminal e salva em arquivo assembly em `output/target_code.s`.
 
+
+### Linguagem EC2
+
+```
+<exp_a> ::= <exp_m> (('+' | '-') <exp_m>)*
+<exp_m> ::= <prim> (('*' | '/') <prim>)*
+<prim> ::= <num> | '(' <exp_a> ')'
+```
+
 Estrutura
 ---------
-
 ### token
 
 O Token é a base da analise léxica. Ele é representado por um enum com as classes. Cada token possui um lexema, uma coluna e uma linha que rastreia a origem para loggar erros.
@@ -59,12 +67,6 @@ enum Expression {
 Os operadores são modelados pelo enum `Operator` (`Sum`, `Sub`, `Div`, `Mul`).
 
 A gramática reconhecida segue o padrão `(expressão operador expressão)`, com parênteses aninhados. Espaços são ignorados durante a análise.
-
-
-Observações 
------------
-
-- A gramatica é limitada, não suporta expressões sem parenteses como `(3 + 4) * 5` ou `3 + 4 * 5`.
 
 
 Geração

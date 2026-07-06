@@ -1,6 +1,5 @@
 use std::env;
 use std::fs;
-// mod zeller;
 mod lexical;
 mod syntax;
 mod generation;
@@ -18,7 +17,7 @@ fn compile_source_code() {
     let tokens = lexical::extract_tokens(&source_code);
     let expression = syntax::extract_expression(tokens);
     let assembly = generation::generate_assembly(expression);
-    println!("{}", &assembly);
+    // println!("{}", &assembly);
     let output_path = "output/target_code.s";
     // println!("assembly generated at: {}", output_path );
     fs::write(output_path, assembly).expect("Error wrinting assembly");

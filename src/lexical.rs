@@ -143,5 +143,7 @@ pub fn extract_tokens(text: &String) -> TokenList {
         current_column += 1
     }
 
+    // println!("{}", tokens);
+
     return tokens;
 }
