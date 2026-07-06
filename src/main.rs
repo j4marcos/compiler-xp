@@ -19,6 +19,7 @@ fn compile_source_code() {
     let assembly = generation::generate_assembly(expression);
     print!("{}", assembly);
     let output_path = "output/target_code.s";
+    fs::create_dir_all("output").expect("Error creating output directory");
     fs::write(output_path, assembly).expect("Error wrinting assembly file");
 }
 
