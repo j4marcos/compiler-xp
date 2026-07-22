@@ -1,0 +1,5 @@
+x = 7 + y;
+y = x * 11;
+begin
+x * y + z
+end

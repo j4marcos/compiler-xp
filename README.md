@@ -12,18 +12,27 @@ Compilador lê a expressão aritmética de um arquivo de entrada e gera o códig
 
 1. **Análise léxica** (`src/lexical.rs`) — identifica e classifica tokens: números, operadores, parênteses e espaços.
 2. **Análise sintática** (`src/syntax.rs`) — monta a **árvore de expressão (AST)** a partir da lista de tokens.
-
-3. **Geração de código** (`src/generation.rs`) — gera o código assembly a partir da árvore de expressão.
+3. **Análise semântica** (`src/semantic.rs`) — verifica se a expressão é válida e se os identificadores são declarados.
+4. **Geração de código** (`src/generation.rs`) — gera o código assembly a partir da árvore de expressão.
 
 imprime o resultado no terminal e salva em arquivo assembly em `output/target_code.s`.
 
 
-### Linguagem EC2
+### Linguagem Cmd
 
 ```
+<programa> ::= <decl>* '{' <cmd>* 'return' <exp> ';' '}'
+<decl> ::= <var> '=' <exp> ';'
+<var> ::= <letra><letra_digito>*
+<cmd> ::= <if> | <while> | <atrib>
+<if> ::= 'if' <exp> '{' <cmd>* '}' 'else' '{' <cmd>* '}'
+<while> ::= 'while' <exp> '{' <cmd>* '}'
+<atrib> ::= <var> '=' <exp> ';'
+<exp> ::= <exp_a> (('<' | '>' | '==')* <exp_a>)*
 <exp_a> ::= <exp_m> (('+' | '-') <exp_m>)*
 <exp_m> ::= <prim> (('*' | '/') <prim>)*
-<prim> ::= <num> | '(' <exp_a> ')'
+<prim> ::= <num> | <var> | '(' <exp> ')'
+<num> ::= <digito><digito>*
 ```
 
 Estrutura
@@ -33,8 +42,11 @@ Estrutura
 O Token é a base da analise léxica. Ele é representado por um enum com as classes. Cada token possui um lexema, uma coluna e uma linha que rastreia a origem para loggar erros.
 
 ```rust
-enum TokenClass {
+pub enum TokenClass {
     Number,
+    Attribution,
+    Semicolon,
+    Identifier,
     LeftParentheses,
     RightParentheses,
     SumOperator,
@@ -74,7 +86,7 @@ Geração
 
 Apartir da arvore expressão o conteudo assembly é incrementado recursivamente para cada nó da árvore no padrão: 
 
-1. se for um número literal, push o valor para a pilha
+1. se for um número ou identificador, push o valor para a pilha
 
 2. se for uma operação binária, pop os dois valores da pilha, execute a operação e push o resultado para a pilha
 

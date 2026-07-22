@@ -9,55 +9,78 @@ pub struct Token {
 }
 
 impl Token {
-    pub fn get_value(self) -> Option<i32> {
-        return match self.class {
-            TokenClass::Number => Some(self.lexema.parse::<i32>().expect("Number token expected to parse into i32")),
-            _ => None,
-        };
+    pub fn new(class: TokenClass, lexema: String, column: usize, line: usize) -> Self {
+        Token {
+            class,
+            lexema,
+            column,
+            line,
+        }
     }
-}
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum TokenLength {
-    Single,
-    Multi,
+    pub fn get_number(self) -> Option<i32> {
+        match self.class {
+            TokenClass::Number => Some(
+                self.lexema
+                    .parse::<i32>()
+                    .expect("Number token expected to parse into i32"),
+            ),
+            _ => None,
+        }
+    }
+
+    pub fn get_lexema(&self) -> &String {
+        &self.lexema
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TokenClass {
     Number,
+    Attribution,
+    Semicolon,
+    Identifier,
+
     LeftParentheses,
     RightParentheses,
+
+    OpenBlock,
+    CloseBlock,
+
     SumOperator,
     SubOperator,
     DivOperator,
     MulOperator,
+
+    EqualOperator,
+    LessThanOperator,
+    GreaterThanOperator,
+    AndOperator,
+    NotOperator,
+    OrOperator,
+
     Space,
     NewLine,
+
+    KeyWord,
 }
 
-impl TokenClass {
-    fn from_char(c: char) -> Option<TokenClass> {
-        match c {
-            '0'..='9' => Some(TokenClass::Number),
-            '(' => Some(TokenClass::LeftParentheses),
-            ')' => Some(TokenClass::RightParentheses),
-            '+' => Some(TokenClass::SumOperator),
-            '-' => Some(TokenClass::SubOperator),
-            '/' => Some(TokenClass::DivOperator),
-            '*' => Some(TokenClass::MulOperator),
-            '\n' => Some(TokenClass::NewLine),
-            ' ' | '\t' => Some(TokenClass::Space),
-            _ => None,
-        }
-    }
+#[derive(PartialEq, Eq)]
+pub enum KeyWord {
+    If,
+    While,
+    Else,
+    Return,
+}
 
-    fn lenght_type(self) -> TokenLength {
-        match self {
-            TokenClass::Number => TokenLength::Multi,
-            TokenClass::Space => TokenLength::Multi,
-            TokenClass::NewLine => TokenLength::Multi,
-            _ => TokenLength::Single,
+impl KeyWord {
+    pub fn from_lexema(lexema: &String) -> Option<KeyWord> {
+        match lexema.as_str() {
+            "if" => Some(KeyWord::If),
+            "else" => Some(KeyWord::Else),
+            "while" => Some(KeyWord::While),
+            "return" => Some(KeyWord::Return),
+            _ => None,
         }
     }
 }
@@ -68,43 +91,11 @@ pub struct TokenList {
 
 impl TokenList {
     pub fn get_tokens(self) -> Vec<Token> {
-        return self.tokens.clone();
+        self.tokens
     }
 
-    fn push_token(&mut self, class: TokenClass, c: char, column: usize, line: usize) {
-        self.tokens.push(Token {
-            class,
-            lexema: String::from(c),
-            column,
-            line,
-        });
-    }
-
-    fn complement_last_token(&mut self, c: char) {
-        if let Some(last) = self.tokens.last_mut() {
-            last.lexema.push(c);
-        }
-    }
-
-    fn push_char(&mut self, c: char, column: usize, line: usize) {
-        if let Some(token_class) = TokenClass::from_char(c) {
-            match token_class.lenght_type() {
-                TokenLength::Multi => {
-                    if let Some(last) = self.tokens.last()
-                        && last.class == token_class
-                    {
-                        self.complement_last_token(c);
-                    } else {
-                        self.push_token(token_class, c, column, line);
-                    }
-                }
-                TokenLength::Single => {
-                    self.push_token(token_class, c, column, line);
-                }
-            }
-        } else {
-            handle_invalid_token(c, column, line)
-        }
+    fn push(&mut self, token: Token) {
+        self.tokens.push(token);
     }
 }
 
@@ -121,7 +112,7 @@ impl fmt::Display for TokenList {
     }
 }
 
-fn handle_invalid_token(c: char, column: usize, line: usize) {
+fn handle_invalid_token(c: char, column: usize, line: usize) -> ! {
     eprintln!(
         "Error lexical: invalid character '{}' at {}:{}",
         c, line, column
@@ -129,21 +120,174 @@ fn handle_invalid_token(c: char, column: usize, line: usize) {
     std::process::exit(1);
 }
 
+fn is_letter(c: char) -> bool {
+    matches!(c, 'a'..='z' | 'A'..='Z')
+}
+
+fn is_digit(c: char) -> bool {
+    matches!(c, '0'..='9')
+}
+
+fn is_letter_or_digit(c: char) -> bool {
+    is_letter(c) || is_digit(c)
+}
+
+fn read_identifier(chars: &[char], read_index: usize) -> usize {
+    let mut literal_index = read_index + 1;
+    while literal_index < chars.len() && is_letter_or_digit(chars[literal_index]) {
+        literal_index += 1;
+    }
+    literal_index
+}
+
+fn read_number(chars: &[char], read_index: usize) -> usize {
+    let mut literal_index = read_index + 1;
+    while literal_index < chars.len() && is_digit(chars[literal_index]) {
+        literal_index += 1;
+    }
+    literal_index
+}
+
+fn is_space(c: char) -> bool {
+    matches!(c, ' ' | '\t')
+}
+
+fn read_spaces(chars: &[char], read_index: usize) -> usize {
+    let mut literal_index = read_index + 1;
+    while literal_index < chars.len() && is_space(chars[literal_index]) {
+        literal_index += 1;
+    }
+    literal_index
+}
+
+fn read_token(chars: &[char], read_index: usize, column: usize, line: usize) -> (Token, usize) {
+    let c = chars[read_index];
+
+    match c {
+        'a'..='z' | 'A'..='Z' => {
+            let end = read_identifier(chars, read_index);
+            let lexema: String = chars[read_index..end].iter().collect();
+            let class = match lexema.as_str() {
+                "and" => TokenClass::AndOperator,
+                "not" => TokenClass::NotOperator,
+                "or" => TokenClass::OrOperator,
+                _ if KeyWord::from_lexema(&lexema).is_some() => TokenClass::KeyWord,
+                _ => TokenClass::Identifier,
+            };
+            (Token::new(class, lexema, column, line), end)
+        }
+        '0'..='9' => {
+            let end = read_number(chars, read_index);
+            let lexema: String = chars[read_index..end].iter().collect();
+            (Token::new(TokenClass::Number, lexema, column, line), end)
+        }
+        '=' => {
+            if read_index + 1 < chars.len() && chars[read_index + 1] == '=' {
+                (
+                    Token::new(TokenClass::EqualOperator, String::from("=="), column, line),
+                    read_index + 2,
+                )
+            } else {
+                (
+                    Token::new(TokenClass::Attribution, String::from("="), column, line),
+                    read_index + 1,
+                )
+            }
+        }
+        '<' => (
+            Token::new(
+                TokenClass::LessThanOperator,
+                String::from("<"),
+                column,
+                line,
+            ),
+            read_index + 1,
+        ),
+        '>' => (
+            Token::new(
+                TokenClass::GreaterThanOperator,
+                String::from(">"),
+                column,
+                line,
+            ),
+            read_index + 1,
+        ),
+        '{' => (
+            Token::new(TokenClass::OpenBlock, String::from("{"), column, line),
+            read_index + 1,
+        ),
+        '}' => (
+            Token::new(TokenClass::CloseBlock, String::from("}"), column, line),
+            read_index + 1,
+        ),
+        ';' => (
+            Token::new(TokenClass::Semicolon, String::from(";"), column, line),
+            read_index + 1,
+        ),
+        '(' => (
+            Token::new(TokenClass::LeftParentheses, String::from("("), column, line),
+            read_index + 1,
+        ),
+        ')' => (
+            Token::new(
+                TokenClass::RightParentheses,
+                String::from(")"),
+                column,
+                line,
+            ),
+            read_index + 1,
+        ),
+        '+' => (
+            Token::new(TokenClass::SumOperator, String::from("+"), column, line),
+            read_index + 1,
+        ),
+        '-' => (
+            Token::new(TokenClass::SubOperator, String::from("-"), column, line),
+            read_index + 1,
+        ),
+        '/' => (
+            Token::new(TokenClass::DivOperator, String::from("/"), column, line),
+            read_index + 1,
+        ),
+        '*' => (
+            Token::new(TokenClass::MulOperator, String::from("*"), column, line),
+            read_index + 1,
+        ),
+        ' ' | '\t' => {
+            let end = read_spaces(chars, read_index);
+            let lexema: String = chars[read_index..end].iter().collect();
+            (Token::new(TokenClass::Space, lexema, column, line), end)
+        }
+        '\n' | '\r' => (
+            Token::new(
+                TokenClass::NewLine,
+                String::from(chars[read_index]),
+                column,
+                line,
+            ),
+            read_index + 1,
+        ),
+        _ => handle_invalid_token(c, column, line),
+    }
+}
+
 pub fn extract_tokens(text: &String) -> TokenList {
-    let mut tokens: TokenList = TokenList { tokens: Vec::new() };
+    let chars: Vec<char> = text.chars().collect();
+    let mut tokens = TokenList { tokens: Vec::new() };
+    let mut read_index = 0;
     let mut current_line = 1;
     let mut current_column: usize = 1;
 
-    for c in text.chars() {
-        if c == '\n' {
+    while read_index < chars.len() {
+        // let c = chars[read_index];
+        let (token, next_index) = read_token(&chars, read_index, current_column, current_line);
+        if token.class == TokenClass::NewLine {
             current_line += 1;
-            current_column = 0;
         }
-        tokens.push_char(c, current_column, current_line);
-        current_column += 1
+        current_column += next_index - read_index;
+        read_index = next_index;
+        tokens.push(token);
     }
 
-    // println!("{}", tokens);
-
-    return tokens;
+    tokens
 }
