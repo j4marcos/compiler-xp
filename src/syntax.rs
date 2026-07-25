@@ -22,9 +22,12 @@ pub enum Operator {
     Sub,
     Div,
     Mul,
+    Mod,
     Equal,
     LessThan,
+    LessEqual,
     GreaterThan,
+    GreaterEqual,
     And,
     Not,
     Or,
@@ -67,9 +70,12 @@ impl std::fmt::Display for Operator {
             Operator::Sub => write!(f, "Sub"),
             Operator::Div => write!(f, "Div"),
             Operator::Mul => write!(f, "Mul"),
+            Operator::Mod => write!(f, "Mod"),
             Operator::Equal => write!(f, "Equal"),
             Operator::GreaterThan => write!(f, ">"),
+            Operator::GreaterEqual => write!(f, ">="),
             Operator::LessThan => write!(f, "<"),
+            Operator::LessEqual => write!(f, "<="),
             Operator::And => write!(f, "and"),
             Operator::Not => write!(f, "not"),
             Operator::Or => write!(f, "or"),
@@ -92,10 +98,11 @@ pub struct Variable {
 pub struct Program {
     pub declarations: Vec<Variable>,
     pub commands: Vec<Command>,
-    pub expression: Expression,
 }
 
-pub struct CodeBlock(pub Vec<Command>, pub Option<Expression>);
+pub struct CodeBlock{
+    pub commands: Vec<Command>
+}
 
 pub enum Command {
     If {
@@ -111,9 +118,12 @@ pub enum Command {
         variable: Token,
         expression: Expression,
     },
-    // Return {
-    //     expression: Expression,
-    // },
+    Return {
+        expression: Expression
+    },
+    Print {
+        expression: Expression
+    }
 }
 
 fn handle_sintax_error(reason: &str) -> ! {
@@ -140,7 +150,7 @@ fn consume_token_class(tokens: &mut VecDeque<Token>, class: TokenClass) {
     skip_whitespace(tokens);
     match tokens.pop_front() {
         Some(token) if token.class == class => {}
-        _ => handle_sintax_error("expecting '{' before commands"),
+        _ => handle_sintax_error(&format!("expecting {:?} here", class)),
     }
 }
 
@@ -156,9 +166,12 @@ fn get_operator(tokens: &mut VecDeque<Token>, valid_operators: &[Operator]) -> O
         TokenClass::SumOperator => Operator::Sum,
         TokenClass::DivOperator => Operator::Div,
         TokenClass::MulOperator => Operator::Mul,
+        TokenClass::ModOperator => Operator::Mod,
         TokenClass::EqualOperator => Operator::Equal,
         TokenClass::GreaterThanOperator => Operator::GreaterThan,
+        TokenClass::GreaterEqualOperator => Operator::GreaterEqual,
         TokenClass::LessThanOperator => Operator::LessThan,
+        TokenClass::LessEqualOperator => Operator::LessEqual,
         TokenClass::AndOperator => Operator::And,
         TokenClass::OrOperator => Operator::Or,
         _ => return None,
@@ -174,7 +187,9 @@ fn get_operator(tokens: &mut VecDeque<Token>, valid_operators: &[Operator]) -> O
 fn get_expression_multiplication(tokens: &mut VecDeque<Token>) -> Expression {
     let mut left = get_expression_unary(tokens);
 
-    while let Some(next_operator) = get_operator(tokens, &[Operator::Mul, Operator::Div]) {
+    while let Some(next_operator) =
+        get_operator(tokens, &[Operator::Mul, Operator::Div, Operator::Mod])
+    {
         tokens.pop_front();
         let right = get_expression_unary(tokens);
         left = Expression::BinOperation {
@@ -208,7 +223,13 @@ fn get_expression_comparation(tokens: &mut VecDeque<Token>) -> Expression {
 
     while let Some(next_operator) = get_operator(
         tokens,
-        &[Operator::Equal, Operator::GreaterThan, Operator::LessThan],
+        &[
+            Operator::Equal,
+            Operator::GreaterThan,
+            Operator::GreaterEqual,
+            Operator::LessThan,
+            Operator::LessEqual,
+        ],
     ) {
         tokens.pop_front();
         let right = get_expression_addition(tokens);
@@ -347,7 +368,6 @@ fn get_attribution(tokens: &mut VecDeque<Token>) -> Command {
 fn get_block_commands(tokens: &mut VecDeque<Token>) -> CodeBlock {
     consume_token_class(tokens, TokenClass::OpenBlock);
     let mut commands: Vec<Command> = Vec::new();
-    let mut final_expression: Option<Expression> = None;
     loop {
         skip_whitespace(tokens);
         let class = match tokens.front() {
@@ -403,8 +423,13 @@ fn get_block_commands(tokens: &mut VecDeque<Token>) -> CodeBlock {
                             consume_token_class(tokens, TokenClass::KeyWord);
                             let expression = extract_expression(tokens);
                             consume_token_class(tokens, TokenClass::Semicolon);
-                            final_expression = Some(expression);
-                            break;
+                            Command::Return { expression }
+                        },
+                        KeyWord::Print => {
+                            consume_token_class(tokens, TokenClass::KeyWord);
+                            let expression = extract_expression(tokens);
+                            consume_token_class(tokens, TokenClass::Semicolon);
+                            Command::Print { expression }
                         }
                         _ => handle_sintax_error("this keyword is not a command"),
                     },
@@ -415,7 +440,7 @@ fn get_block_commands(tokens: &mut VecDeque<Token>) -> CodeBlock {
         });
     }
     consume_token_class(tokens, TokenClass::CloseBlock);
-    return CodeBlock(commands, final_expression);
+    return CodeBlock {commands};
 }
 
 pub fn build_program(tokens_list: TokenList) -> Program {
@@ -423,15 +448,10 @@ pub fn build_program(tokens_list: TokenList) -> Program {
 
     let declarations = get_declarations(&mut tokens);
 
-    let CodeBlock(commands, final_expression) = get_block_commands(&mut tokens);
-
-    let Some(expression) = final_expression else {
-        handle_sintax_error("main block must have return expression")
-    };
+    let CodeBlock {commands} = get_block_commands(&mut tokens);
 
     Program {
         declarations,
         commands,
-        expression,
     }
 }

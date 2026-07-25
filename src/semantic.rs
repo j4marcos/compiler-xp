@@ -52,16 +52,19 @@ fn check_command(command: &Command, declared: &HashSet<String>) {
         Command::While { condition, block } => {
             check_expression(&condition, declared);
             check_code_block(block, declared)
+        },
+        Command::Return { expression } => {
+            check_expression(expression, declared);
+        },
+        Command::Print { expression } => {
+            check_expression(expression, declared);
         }
     }
 }
 
 fn check_code_block(block: &CodeBlock, declared: &HashSet<String>) {
-    for command in &block.0 {
+    for command in &block.commands {
         check_command(command, declared);
-    }
-    if let Some(expression) = &block.1 {
-        check_expression(&expression, declared);
     }
 }
 
@@ -83,5 +86,9 @@ pub fn validate_program(program: &Program) {
     for command in &program.commands {
         check_command(command, &declared);
     }
-    check_expression(&program.expression, &declared)
+
+    let Some(Command::Return { expression }) = program.commands.last() else {
+        handle_semantic_error("main block must have return expression for last command")
+    };
+    check_expression(expression, &declared)
 }

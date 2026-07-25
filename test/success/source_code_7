@@ -1,7 +1,6 @@
-x = (7 + 4) * 12;
-y = x * 3 + 11;
-begin
-(x * y) + (x * 11) + (y * 13)
-end
-
-
+a = 5;
+b = 5;
+c = 10;
+{
+  return (a == b) and (a < c) and (c > b) and (a <= b) and (c >= a);
+}

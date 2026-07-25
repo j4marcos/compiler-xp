@@ -51,10 +51,13 @@ pub enum TokenClass {
     SubOperator,
     DivOperator,
     MulOperator,
+    ModOperator,
 
     EqualOperator,
     LessThanOperator,
+    LessEqualOperator,
     GreaterThanOperator,
+    GreaterEqualOperator,
     AndOperator,
     NotOperator,
     OrOperator,
@@ -71,6 +74,7 @@ pub enum KeyWord {
     While,
     Else,
     Return,
+    Print,
 }
 
 impl KeyWord {
@@ -80,6 +84,7 @@ impl KeyWord {
             "else" => Some(KeyWord::Else),
             "while" => Some(KeyWord::While),
             "return" => Some(KeyWord::Return),
+            "print" => Some(KeyWord::Print),
             _ => None,
         }
     }
@@ -194,24 +199,52 @@ fn read_token(chars: &[char], read_index: usize, column: usize, line: usize) -> 
                 )
             }
         }
-        '<' => (
-            Token::new(
-                TokenClass::LessThanOperator,
-                String::from("<"),
-                column,
-                line,
-            ),
-            read_index + 1,
-        ),
-        '>' => (
-            Token::new(
-                TokenClass::GreaterThanOperator,
-                String::from(">"),
-                column,
-                line,
-            ),
-            read_index + 1,
-        ),
+        '<' => {
+            if read_index + 1 < chars.len() && chars[read_index + 1] == '=' {
+                (
+                    Token::new(
+                        TokenClass::LessEqualOperator,
+                        String::from("<="),
+                        column,
+                        line,
+                    ),
+                    read_index + 2,
+                )
+            } else {
+                (
+                    Token::new(
+                        TokenClass::LessThanOperator,
+                        String::from("<"),
+                        column,
+                        line,
+                    ),
+                    read_index + 1,
+                )
+            }
+        }
+        '>' => {
+            if read_index + 1 < chars.len() && chars[read_index + 1] == '=' {
+                (
+                    Token::new(
+                        TokenClass::GreaterEqualOperator,
+                        String::from(">="),
+                        column,
+                        line,
+                    ),
+                    read_index + 2,
+                )
+            } else {
+                (
+                    Token::new(
+                        TokenClass::GreaterThanOperator,
+                        String::from(">"),
+                        column,
+                        line,
+                    ),
+                    read_index + 1,
+                )
+            }
+        }
         '{' => (
             Token::new(TokenClass::OpenBlock, String::from("{"), column, line),
             read_index + 1,
@@ -251,6 +284,10 @@ fn read_token(chars: &[char], read_index: usize, column: usize, line: usize) -> 
         ),
         '*' => (
             Token::new(TokenClass::MulOperator, String::from("*"), column, line),
+            read_index + 1,
+        ),
+        '%' => (
+            Token::new(TokenClass::ModOperator, String::from("%"), column, line),
             read_index + 1,
         ),
         ' ' | '\t' => {

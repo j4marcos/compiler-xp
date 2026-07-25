@@ -1,5 +1,7 @@
-x = 7 + y;
-y = x * 11;
-begin
-x * y + z
-end
+x = 1;
+{
+  if x == 1 {
+    return 1;
+  }
+  return 0;
+}

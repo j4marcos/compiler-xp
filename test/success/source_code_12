@@ -1,0 +1,14 @@
+n = 10;
+acc = 0;
+{
+  while n > 0 {
+    print acc;
+    if n % 2 == 0 {
+      acc = acc + n;
+    } else {
+      acc = acc + 1;
+    }
+    n = n - 1;
+  }
+  return acc;
+}
