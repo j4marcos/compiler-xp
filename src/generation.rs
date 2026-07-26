@@ -159,14 +159,32 @@ fn generate_commands(commands: &Vec<Command>, code: &mut String) {
 
 fn generate_bss(program: &Program) -> String {
     let mut bss = String::new();
-    for variable in &program.declarations {
-        let name = variable.identifier.get_lexema();
-        bss.push_str(&format!(".lcomm {}, 8\n", name));
+    for identifier in &program.declarations {
+        if let Identifier::Variable(variable)  = identifier {
+            let name = variable.token.get_lexema();
+            bss.push_str(&format!(".lcomm {}, 8\n", name));
+        }
     }
     bss
 }
 
-fn generate_code(program: &Program) -> String {
+fn generate_lib(program: &Program) -> String {
+    let mut lib = String::new();
+    for identifier in &program.declarations {
+        if let Identifier::Function(function)  = identifier {
+            let name = function.token.get_lexema();
+
+            lib.push_str(&format!("{}:\n", name));
+            lib.push_str( "mov %rsp, %rbp\n");
+
+        }
+    }
+    lib
+}
+
+
+
+fn generate_main(program: &Program) -> String {
     let mut code = String::new();
 
     generate_attribuitions(&program.declarations, &mut code);
@@ -187,5 +205,6 @@ fn generate_attribuitions(declarations: &Vec<Variable>, code: &mut String) {
 pub fn generate_assembly(program: &Program) -> String {
     OUTPUT_TEMPLATE
         .replace("{bss}", &generate_bss(program))
-        .replace("{code}", &generate_code(program))
+        .replace("{lib}", &generate_lib(program))
+        .replace("{main}", &generate_main(program))
 }

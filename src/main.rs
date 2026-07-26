@@ -18,6 +18,7 @@ fn compile_source_code() {
     let tokens = lexical::extract_tokens(&source_code);
     let program = syntax::build_program(tokens);
     semantic::validate_program(&program);
+    println!("{:?}",program);
     let assembly = generation::generate_assembly(&program);
     print!("{}", assembly);
     let output_path = "output/target_code.s";

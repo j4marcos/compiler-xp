@@ -1,0 +1,15 @@
+var m = 10;
+var n = 4;
+
+func add(a, b) {
+ return a + b;
+}
+
+main {
+ var acc = 0;
+ while m + 1 > n {
+ m = m - n;
+ acc = add(acc, m);
+ }
+ return acc;
+}
