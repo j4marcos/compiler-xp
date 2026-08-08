@@ -1,0 +1,7 @@
+func double(x) {
+  return x + x;
+}
+
+func main() {
+  return double(21);
+}

@@ -1,0 +1,19 @@
+var a = 18;
+var b = 12;
+var r = 0;
+
+func main() {
+  r = a;
+  while r + 1 > b {
+    r = r - b;
+  }
+  while r > 0 {
+    a = b;
+    b = r;
+    r = a;
+    while r + 1 > b {
+      r = r - b;
+    }
+  }
+  return b;
+}

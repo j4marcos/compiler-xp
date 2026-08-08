@@ -1,7 +1,7 @@
 use crate::lexical::*;
 use std::collections::VecDeque;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Expression {
     NumberLiteral(i32),
     Identifier(String),
@@ -13,6 +13,10 @@ pub enum Expression {
         left_value: Box<Expression>,
         operator: Operator,
         right_value: Box<Expression>,
+    },
+    FunctionCall {
+        name: String,
+        parameters: Vec<Expression>,
     },
 }
 
@@ -59,6 +63,13 @@ impl Expression {
                 left_value.print_tree(&child_prefix, false);
                 right_value.print_tree(&child_prefix, true);
             }
+            Expression::FunctionCall { name, parameters } => {
+                println!("{}{}Call({})", prefix, connector, name);
+                let last = parameters.len().saturating_sub(1);
+                for (i, param) in parameters.iter().enumerate() {
+                    param.print_tree(&child_prefix, i == last);
+                }
+            }
         }
     }
 }
@@ -90,20 +101,37 @@ impl std::fmt::Display for Expression {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct Variable {
-    pub identifier: Token,
+    pub name: Token,
     pub expression: Expression,
 }
 
+#[derive(Debug, Clone)]
+pub struct Function {
+    pub name: Token,
+    pub parameters: Vec<Token>,
+    pub code_block: CodeBlock,
+}
+
+#[derive(Debug, Clone)]
+pub enum Identifier {
+    Variable(Variable),
+    Function(Function),
+}
+
+#[derive(Debug)]
 pub struct Program {
-    pub declarations: Vec<Variable>,
+    pub declarations: Vec<Identifier>,
+    // pub commands: Vec<Command>,
+}
+
+#[derive(Debug, Clone)]
+pub struct CodeBlock {
     pub commands: Vec<Command>,
 }
 
-pub struct CodeBlock{
-    pub commands: Vec<Command>
-}
-
+#[derive(Debug, Clone)]
 pub enum Command {
     If {
         condition: Expression,
@@ -118,12 +146,19 @@ pub enum Command {
         variable: Token,
         expression: Expression,
     },
+    FunctionCall {
+        name: String,
+        parameters: Vec<Expression>,
+    },
     Return {
-        expression: Expression
+        expression: Expression,
     },
     Print {
-        expression: Expression
-    }
+        expression: Expression,
+    },
+    Declaration {
+        identifier: Identifier,
+    },
 }
 
 fn handle_sintax_error(reason: &str) -> ! {
@@ -303,13 +338,24 @@ fn get_primary(tokens: &mut VecDeque<Token>) -> Expression {
             }
             TokenClass::Identifier => {
                 let lexema = token.get_lexema();
-                if let Some(_) = KeyWord::from_lexema(&lexema) {
-                    handle_sintax_error(&format!(
-                        "unexpected keyword '{}' in expression",
-                        token.get_lexema()
-                    ));
+                        if let Some(_) = KeyWord::from_lexema(&lexema) {
+                            handle_sintax_error(&format!(
+                                "unexpected keyword '{}' in expression",
+                                token.get_lexema()
+                            ));
+                        }
+
+                match next_token_class(tokens, 0) {
+                    Some(TokenClass::LeftParentheses) => {
+                        consume_token_class(tokens, TokenClass::LeftParentheses);
+                        let mut parameters: Vec<Expression> = Vec::new();
+                        read_call_parameters(tokens, &mut parameters);
+                        Expression::FunctionCall { name: lexema.to_string(), parameters}
+                    }
+                    _ => {
+                        Expression::Identifier(lexema.to_string())
+                    }
                 }
-                Expression::Identifier(lexema.to_string())
             }
             TokenClass::LeftParentheses => {
                 let inner_expression = extract_expression(tokens);
@@ -325,29 +371,88 @@ fn extract_expression(tokens: &mut VecDeque<Token>) -> Expression {
     get_expression_or(tokens)
 }
 
-fn extract_declaration(tokens: &mut VecDeque<Token>, identifier: Token) -> Variable {
+fn extract_variable_declaration(tokens: &mut VecDeque<Token>) -> Identifier {
+    consume_token_class(tokens, TokenClass::KeyWord);
+    skip_whitespace(tokens);
+    let name = tokens
+        .pop_front()
+        .expect("variable declaration must have a identifier")
+        .clone();
     consume_token_class(tokens, TokenClass::Attribution);
     let expression = extract_expression(tokens);
     consume_token_class(tokens, TokenClass::Semicolon);
-    Variable {
-        identifier,
+    return Identifier::Variable(Variable {
+        name,
         expression,
+    });
+}
+
+fn read_declaration_parameters(tokens: &mut VecDeque<Token>, parameters: &mut Vec<Token>) {
+    skip_whitespace(tokens);
+
+    match tokens.front() {
+        Some(token) => match token.class {
+            TokenClass::RightParentheses => return,
+            TokenClass::Comma => {
+                consume_token_class(tokens, TokenClass::Comma);
+                skip_whitespace(tokens);
+                let Some(token) = tokens.pop_front() else {
+                    handle_sintax_error("missing parameter name in declaration after comma");
+                };
+                parameters.push(token.clone());
+                read_declaration_parameters(tokens, parameters);
+            }
+            _ => {
+                skip_whitespace(tokens);
+                let Some(token) = tokens.pop_front() else {
+                    handle_sintax_error("missing parameter name in declaration after comma");
+                };
+                parameters.push(token.clone());
+                read_declaration_parameters(tokens, parameters);
+            }
+        },
+        None => handle_sintax_error("function call incomplete"),
     }
 }
 
-fn get_declarations(tokens: &mut VecDeque<Token>) -> Vec<Variable> {
-    let mut declarations: Vec<Variable> = Vec::new();
+fn extract_function_declaration(tokens: &mut VecDeque<Token>) -> Identifier {
+    consume_token_class(tokens, TokenClass::KeyWord);
+    skip_whitespace(tokens);
+    let name = tokens
+        .pop_front()
+        .expect("function declaration must have a identifier")
+        .clone();
+    consume_token_class(tokens, TokenClass::LeftParentheses);
+    let mut parameters: Vec<Token> = Vec::new();
+    read_declaration_parameters(tokens, &mut parameters);
+    consume_token_class(tokens, TokenClass::RightParentheses);
+    let code_block = get_block_commands(tokens);
+    Identifier::Function(Function {
+        name,
+        parameters,
+        code_block,
+    })
+}
+
+fn get_init_declarations(tokens: &mut VecDeque<Token>) -> Vec<Identifier> {
+    let mut declarations: Vec<Identifier> = Vec::new();
     loop {
         skip_whitespace(tokens);
 
         match tokens.front() {
-            Some(token) if token.class == TokenClass::OpenBlock => return declarations,
-            Some(token) if token.class == TokenClass::Identifier => {
-                let identifier = tokens.pop_front().expect("identifier already peeked");
-                declarations.push(extract_declaration(tokens, identifier));
+            Some(token) if token.class == TokenClass::KeyWord => {
+                match KeyWord::from_lexema(&token.get_lexema()) {
+                    Some(keyword) => match keyword {
+                        KeyWord::Func => declarations.push(extract_function_declaration(tokens)),
+                        KeyWord::Var => declarations.push(extract_variable_declaration(tokens)),
+                        _ => handle_sintax_error(
+                            "only declarations of variables or functions are avaiable in global scope",
+                        ),
+                    },
+                    None => unreachable!(),
+                }
             }
-            Some(_) => handle_sintax_error("expecting declaration or 'begin'"),
-            None => handle_sintax_error("unexpected end of file, expecting 'begin'"),
+            _ => return declarations
         }
     }
 }
@@ -365,6 +470,52 @@ fn get_attribution(tokens: &mut VecDeque<Token>) -> Command {
     }
 }
 
+fn read_call_parameters(tokens: &mut VecDeque<Token>, parameters: &mut Vec<Expression>) {
+    skip_whitespace(tokens);
+
+    match tokens.front() {
+        Some(token) => match token.class {
+            TokenClass::RightParentheses => return consume_token_class(tokens, TokenClass::RightParentheses),
+            TokenClass::Comma => {
+                consume_token_class(tokens, TokenClass::Comma);
+                let expression = extract_expression(tokens);
+                parameters.push(expression);
+                read_call_parameters(tokens, parameters);
+            }
+            _ => {
+                let expression = extract_expression(tokens);
+                parameters.push(expression);
+                read_call_parameters(tokens, parameters);
+            }
+        },
+        None => handle_sintax_error("function call incomplete"),
+    }
+}
+
+fn get_function_call(tokens: &mut VecDeque<Token>) -> Command {
+    let Some(identifier) = tokens.pop_front() else {
+        handle_sintax_error("Function call without identifier")
+    };
+    consume_token_class(tokens, TokenClass::LeftParentheses);
+    let mut parameters: Vec<Expression> = Vec::new();
+    read_call_parameters(tokens, &mut parameters);
+
+    Command::FunctionCall {
+        name: identifier.get_lexema().to_string(),
+        parameters,
+    }
+}
+
+fn next_token_class(tokens: &VecDeque<Token>, read_index: usize) -> Option<TokenClass> {
+    let Some(next_token) = tokens.get(read_index) else {
+        return None;
+    };
+    match next_token.class {
+        TokenClass::Space | TokenClass::NewLine => next_token_class(tokens, read_index + 1),
+        _ => return Some(next_token.class),
+    }
+}
+
 fn get_block_commands(tokens: &mut VecDeque<Token>) -> CodeBlock {
     consume_token_class(tokens, TokenClass::OpenBlock);
     let mut commands: Vec<Command> = Vec::new();
@@ -379,7 +530,11 @@ fn get_block_commands(tokens: &mut VecDeque<Token>) -> CodeBlock {
 
         commands.push(match class {
             TokenClass::CloseBlock => break,
-            TokenClass::Identifier => get_attribution(tokens),
+            TokenClass::Identifier => match next_token_class(tokens, 1) {
+                Some(TokenClass::Attribution) => get_attribution(tokens),
+                Some(TokenClass::LeftParentheses) => get_function_call(tokens),
+                _ => handle_sintax_error("wrong use of identifier"),
+            },
             TokenClass::KeyWord => {
                 let keyword = {
                     let Some(token) = tokens.front() else {
@@ -424,14 +579,23 @@ fn get_block_commands(tokens: &mut VecDeque<Token>) -> CodeBlock {
                             let expression = extract_expression(tokens);
                             consume_token_class(tokens, TokenClass::Semicolon);
                             Command::Return { expression }
-                        },
+                        }
                         KeyWord::Print => {
                             consume_token_class(tokens, TokenClass::KeyWord);
                             let expression = extract_expression(tokens);
                             consume_token_class(tokens, TokenClass::Semicolon);
                             Command::Print { expression }
                         }
-                        _ => handle_sintax_error("this keyword is not a command"),
+                        KeyWord::Func => Command::Declaration {
+                            identifier: extract_function_declaration(tokens),
+                        },
+                        KeyWord::Var => Command::Declaration {
+                            identifier: extract_variable_declaration(tokens),
+                        },
+                        _ => handle_sintax_error(&format!(
+                            "{:?} cannot be used as a command",
+                            keyword
+                        )),
                     },
                     None => handle_sintax_error("keyword unexpected"),
                 }
@@ -440,18 +604,15 @@ fn get_block_commands(tokens: &mut VecDeque<Token>) -> CodeBlock {
         });
     }
     consume_token_class(tokens, TokenClass::CloseBlock);
-    return CodeBlock {commands};
+    return CodeBlock { commands };
 }
 
 pub fn build_program(tokens_list: TokenList) -> Program {
     let mut tokens = VecDeque::from(tokens_list.get_tokens());
 
-    let declarations = get_declarations(&mut tokens);
-
-    let CodeBlock {commands} = get_block_commands(&mut tokens);
+    let declarations = get_init_declarations(&mut tokens);
 
     Program {
-        declarations,
-        commands,
+        declarations
     }
 }

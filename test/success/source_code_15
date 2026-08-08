@@ -1,0 +1,9 @@
+var m = 10;
+var n = 4;
+
+func main() {
+  while m + 1 > n {
+    m = m - n;
+  }
+  return m;
+}

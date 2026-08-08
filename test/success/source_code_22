@@ -1,0 +1,11 @@
+func square(x) {
+  return x * x;
+}
+
+func hypot2(a, b) {
+  return square(a) + square(b);
+}
+
+func main() {
+  return hypot2(3, 4);
+}

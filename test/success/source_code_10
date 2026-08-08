@@ -1,5 +1,6 @@
-x = 3;
-{
+var x = 3;
+
+func main() {
   if x < 10 {
     x = x + 1;
   } else {

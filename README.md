@@ -7,32 +7,34 @@ Repositorio: https://github.com/j4marcos/compiler-xp.git
 Visão geral
 -----------
 
-Compilador lê um programa da linguagem **Cmd** a partir de um arquivo de entrada e gera código assembly x86-64 (sintaxe AT&T), com o fluxo:
+Compilador lê um programa da linguagem **Func** a partir de um arquivo de entrada e gera código assembly x86-64 (sintaxe AT&T), com o fluxo:
 
 1. **Análise léxica** (`src/lexical.rs`) — classifica tokens (números, operadores, identificadores, palavras-chave, blocos, etc.).
-2. **Análise sintática** (`src/syntax.rs`) — monta a AST de expressões e a árvore de comandos do programa.
-3. **Análise semântica** (`src/semantic.rs`) — valida declarações e uso de variáveis.
-4. **Geração de código** (`src/generation.rs`) — emite assembly; o valor do `return` final fica em `%rax`, é impresso via runtime e o programa encerra.
+2. **Análise sintática** (`src/syntax.rs`) — monta a AST de expressões, declarações e funções.
+3. **Análise semântica** (`src/semantic.rs`) — valida declarações, escopos e existência de `main` com `return` final.
+4. **Geração de código** (`src/generation.rs`) — emite assembly; `_start` inicializa globais, chama `main`, imprime o valor em `%rax` via runtime e encerra.
 
 O assembly é impresso no terminal e salvo em `output/target_code.s`.
 
 
-### Linguagem Cmd
+### Linguagem Func
 
-- Como variação da linguagem Cmd, a gramática foi expandida para incluir expressões booleanas 
-and e or, operadores booleanos <= e >=, e operador %. E o return pode ser usado em qualquer 
-bloco (obrigatório no bloco principal).
+Variação da Cmd com `func`/`var`, expressões booleanas (`and`, `or`, `not`), operadores `<=`, `>=`, `%`, `print`, e funções com parâmetros e variáveis locais. O programa deve ter `func main()` e o último comando de `main` deve ser um `return`.
 
 ```
-<programa> ::= <decl>* '{' <cmd>* <return> '}'
-<decl>     ::= <var> '=' <exp> ';'
-<var>      ::= <letra><letra_digito>*
-<cmd>      ::= <if> | <while> | <atrib> | <return> | <print>
-<print> ::= 'print' <exp> ';'
-<if>       ::= 'if' <exp> '{' <cmd>* '}' 'else' '{' <cmd>* '}'
-<while>    ::= 'while' <exp> '{' <cmd>* '}'
-<atrib>    ::= <var> '=' <exp> ';'
-<return>   ::= 'return' <exp> ';'
+<programa> ::= <decl>*
+<decl>       ::= <vardecl> | <fundecl>
+<vardecl>    ::= 'var' <ident> '=' <exp> ';'
+<fundecl>    ::= 'func' <ident> '(' <arglist>? ')' '{' <cmd>* '}'
+<arglist>    ::= <ident> | <ident> ',' <arglist>
+<cmd>        ::= <if> | <while> | <atrib> | <return> | <print> | <funcall> | <vardecl>
+<print>      ::= 'print' <exp> ';'
+<if>         ::= 'if' <exp> '{' <cmd>* '}' 'else' '{' <cmd>* '}'
+<while>      ::= 'while' <exp> '{' <cmd>* '}'
+<atrib>      ::= <ident> '=' <exp> ';'
+<return>     ::= 'return' <exp> ';'
+<funcall>    ::= <ident> '(' <params>? ')'
+<params>     ::= <exp> | <exp> ',' <params>
 
 <exp>      ::= <exp_or>
 <exp_or>   ::= <exp_and> (('or') <exp_and>)*
@@ -41,12 +43,22 @@ bloco (obrigatório no bloco principal).
 <exp_a>    ::= <exp_m> (('+' | '-') <exp_m>)*
 <exp_m>    ::= <exp_u> (('*' | '/' | '%') <exp_u>)*
 <exp_u>    ::= ('not') <exp_u> | <prim>
-<prim>     ::= <num> | <var> | '(' <exp> ')'
-<num>      ::= <digito><digito>*
+<prim>     ::= <num> | <ident> | '(' <exp> ')' | <funcall>
 ```
 
 Precedência (maior → menor): `not` → `*` `/` `%` → `+` `-` → relacionais → `and` → `or`.
 
+Exemplo:
+
+```
+func add(a, b) {
+  return a + b;
+}
+
+func main() {
+  return add(2, 3);
+}
+```
 
 
 Estrutura
@@ -54,38 +66,7 @@ Estrutura
 
 ### Token
 
-Base da análise léxica. Cada token tem classe, lexema, coluna e linha (para erros).
-
-```rust
-pub enum TokenClass {
-    Number,
-    Attribution,
-    Semicolon,
-    Identifier,
-    LeftParentheses,
-    RightParentheses,
-    OpenBlock,
-    CloseBlock,
-    SumOperator,
-    SubOperator,
-    DivOperator,
-    MulOperator,
-    ModOperator,
-    EqualOperator,
-    LessThanOperator,
-    LessEqualOperator,
-    GreaterThanOperator,
-    GreaterEqualOperator,
-    AndOperator,
-    NotOperator,
-    OrOperator,
-    Space,
-    NewLine,
-    KeyWord,
-}
-```
-
-Keywords: `if`, `else`, `while`, `return`, `and`, `or`, `not`.
+Keywords: `if`, `else`, `while`, `return`, `print`, `and`, `or`, `not`, `func`, `var`, `main`.
 
 ### Expression / Command
 
@@ -93,25 +74,19 @@ Keywords: `if`, `else`, `while`, `return`, `and`, `or`, `not`.
 enum Expression {
     NumberLiteral(i32),
     Identifier(String),
-    UnaryOperation { operator: Operator, operand: Box<Expression> },
-    BinOperation {
-        left_value: Box<Expression>,
-        operator: Operator,
-        right_value: Box<Expression>,
-    },
-}
-
-enum Operator {
-    Sum, Sub, Div, Mul, Mod,
-    Equal, LessThan, LessEqual, GreaterThan, GreaterEqual,
-    And, Or, Not,
+    UnaryOperation { operator, operand },
+    BinOperation { left_value, operator, right_value },
+    FunctionCall { name, parameters },
 }
 
 enum Command {
     If { condition, true_block, false_block },
     While { condition, block },
     Attribution { variable, expression },
+    FunctionCall { name, parameters },
     Return { expression },
+    Print { expression },
+    Declaration { identifier }, // var ou func (func aninhada não é gerada)
 }
 ```
 
@@ -119,12 +94,14 @@ enum Command {
 Geração
 -------
 
-A geração percorre declarações e comandos e avalia expressões deixando o resultado em `%rax`:
+Expressões deixam o resultado em `%rax`.
 
-1. literal / variável → `mov` para `%rax`
-2. binária → avalia esquerda, `push %rax`, avalia direita, `pop %rbx`, aplica a operação
-3. `if` / `while` → `cmp` + saltos (`jz` / `jmp`) com labels
-4. `return` final → valor em `%rax`, depois `call imprime_num` e `call sair` (runtime em `templates/runtime.s`)
+1. literal / variável → `mov` para `%rax` (global por nome; local/param por offset de `%rbp`)
+2. binária → esquerda, `push %rax`, direita, `pop %rbx`, operação
+3. `if` / `while` → `cmp` + saltos com labels
+4. **chamada de função** → empilha args na ordem inversa, `call`, limpa a pilha (`add $N, %rsp`); retorno em `%rax`
+5. **corpo de função** → `push %rbp`, `sub $L*8, %rsp`, `mov %rsp, %rbp`; locais em `0(%rbp)…`; params em `(L+2)*8(%rbp)…`; no `return`: libera frame, `pop %rbp`, `ret`
+6. `_start` → inicializa globais (`.bss`), `call main`, `call imprime_num`, `call sair` (`templates/runtime.s`)
 
 
 Como executar
@@ -147,54 +124,52 @@ Testes de sucesso
 -----------------
 
 ```sh
-cargo run test/success/source_code_1
-cargo run test/success/source_code_2
-cargo run test/success/source_code_3
-cargo run test/success/source_code_4
-cargo run test/success/source_code_5
-cargo run test/success/source_code_6
-cargo run test/success/source_code_7
-cargo run test/success/source_code_8
-cargo run test/success/source_code_9
-cargo run test/success/source_code_10
-cargo run test/success/source_code_11
-cargo run test/success/source_code_12
+for i in $(seq 1 22); do
+  cargo run test/success/source_code_$i
+  as -o output/target_code.o output/target_code.s -Itemplates
+  ld -o output/target_code output/target_code.o
+  output/target_code
+done
 ```
 
-| Arquivo | Cobre |
-|---------|--------|
-| `1`–`3` | Aritmética e parênteses |
-| `4` | Precedência `*` `/` `%` vs `+` `-` |
-| `5`–`6` | Declarações e uso de variáveis |
-| `7` | Comparações `==` `<` `>` `<=` `>=` |
-| `8` | `and` / `or` / `not` |
-| `9` | Módulo `%` |
-| `10` | `if` / `else` |
-| `11` | `while` |
-| `12` | Programa combinando vários recursos |
+| Arquivo | Cobre | Resultado esperado |
+|---------|--------|--------------------|
+| `1`–`3` | Aritmética e parênteses | `25`, `10065`, `2657` |
+| `4` | Precedência `*` `/` `%` vs `+` `-` | `91` |
+| `5`–`6` | Variáveis globais (`var`) | `60467`, `891` |
+| `7` | Comparações `==` `<` `>` `<=` `>=` | `1` |
+| `8` | `and` / `or` / `not` | `1` |
+| `9` | Módulo `%` | `2` |
+| `10` | `if` / `else` | `4` |
+| `11` | `while` | `3` |
+| `12` | `print` + `if`/`while` | `35` (e prints intermediários) |
+| `13` | Algoritmo (mdc) | `6` |
+| `14`–`15` | Resto por subtrações | `2` |
+| `16` | Função `add` + locals na `main` | `8` |
+| `17` | Um parâmetro | `42` |
+| `18` | Locais na pilha | `131714583` |
+| `19` | Recursão (`fat`) | `120` |
+| `20` | Calls aninhadas | `45` |
+| `21` | `if` em função + locals | `10` |
+| `22` | Função chamando outra | `25` |
 
 
 Testes de erro
 --------------
 
 ```sh
-cargo run test/error/source_code_1
-cargo run test/error/source_code_2
-cargo run test/error/source_code_3
-cargo run test/error/source_code_4
-cargo run test/error/source_code_5
-cargo run test/error/source_code_6
-cargo run test/error/source_code_7
-cargo run test/error/source_code_8
+for i in $(seq 1 10); do cargo run test/error/source_code_$i; done
 ```
 
 | Arquivo | Esperado |
 |---------|----------|
 | `1` | Erro sintático (expressão malformada) |
-| `2` | Erro léxico (identificador/número inválido) |
-| `3` | Erro sintático (arquivo vazio / sem bloco) |
-| `4` | Erro sintático (bloco sem `return`) |
+| `2` | Erro léxico (caractere inválido) |
+| `3` | Erro semântico (arquivo vazio / sem `main`) |
+| `4` | Erro semântico (`main` sem `return` final) |
 | `5` | Erro semântico (variável não declarada) |
 | `6` | Erro semântico (uso antes da declaração) |
 | `7` | Erro semântico (variável redeclarada) |
 | `8` | Erro sintático (`if` sem `else`) |
+| `9` | Erro semântico (função não declarada) |
+| `10` | Erro semântico (programa sem `main`) |

@@ -1,5 +1,6 @@
-n = 0;
-{
+var n = 0;
+
+func main() {
   while n < 3 {
     n = n + 1;
   }

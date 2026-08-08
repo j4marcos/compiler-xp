@@ -3,9 +3,9 @@ use std::fmt;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Token {
     pub class: TokenClass,
-    lexema: String,
-    column: usize,
-    line: usize,
+    pub(crate) lexema: String,
+    pub column: usize,
+    pub line: usize,
 }
 
 impl Token {
@@ -37,15 +37,16 @@ impl Token {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TokenClass {
     Number,
-    Attribution,
-    Semicolon,
     Identifier,
+    Attribution,
 
     LeftParentheses,
     RightParentheses,
 
     OpenBlock,
     CloseBlock,
+    Semicolon,
+    Comma,
 
     SumOperator,
     SubOperator,
@@ -68,13 +69,16 @@ pub enum TokenClass {
     KeyWord,
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Debug)]
 pub enum KeyWord {
     If,
     While,
     Else,
     Return,
     Print,
+    Main,
+    Func,
+    Var
 }
 
 impl KeyWord {
@@ -85,6 +89,9 @@ impl KeyWord {
             "while" => Some(KeyWord::While),
             "return" => Some(KeyWord::Return),
             "print" => Some(KeyWord::Print),
+            "main" => Some(KeyWord::Main),
+            "func" => Some(KeyWord::Func),
+            "var" => Some(KeyWord::Var ),
             _ => None,
         }
     }
@@ -288,6 +295,10 @@ fn read_token(chars: &[char], read_index: usize, column: usize, line: usize) -> 
         ),
         '%' => (
             Token::new(TokenClass::ModOperator, String::from("%"), column, line),
+            read_index + 1,
+        ),
+        ',' => (
+            Token::new(TokenClass::Comma, String::from(','), column, line),
             read_index + 1,
         ),
         ' ' | '\t' => {
