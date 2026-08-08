@@ -7,7 +7,7 @@ Repositorio: https://github.com/j4marcos/compiler-xp.git
 Visão geral
 -----------
 
-Compilador lê um programa da linguagem **Cmd** a partir de um arquivo de entrada e gera código assembly x86-64 (sintaxe AT&T), com o fluxo:
+Compilador lê um programa da linguagem **Func** a partir de um arquivo de entrada e gera código assembly x86-64 (sintaxe AT&T), com o fluxo:
 
 1. **Análise léxica** (`src/lexical.rs`) — classifica tokens (números, operadores, identificadores, palavras-chave, blocos, etc.).
 2. **Análise sintática** (`src/syntax.rs`) — monta a AST de expressões e a árvore de comandos do programa.
@@ -24,13 +24,14 @@ and e or, operadores booleanos <= e >=, e operador %. E o return pode ser usado 
 bloco (obrigatório no bloco principal).
 
 ```
-<programa> ::= <decl>* 'main' '{' <cmd>* <return> '}'
+<programa> ::= <decl>* 'func' 'main' '(' <arglist>? ')' '{' <cmd>* <return> '}'
 <ident>      ::= <letra><letra_digito>*
+<decl> ::= <vardecl> | <fundecl>
 <vardecl>     ::= 'var' <ident> '=' <exp> ';'
-<fundecl> ::= 'fun' <ident> '(' <arglist>? ')'
-'{' <vardecl>* <cmd>* <return> '}'
+<fundecl> ::= 'func' <ident> '(' <arglist>? ')'
+'{' <cmd>* <return> '}'
 <arglist> ::= <ident> | <ident> ',' <arglist>
-<cmd>      ::= <if> | <while> | <atrib> | <return> | <print> | <funcall>
+<cmd>      ::= <if> | <while> | <atrib> | <return> | <print> | <funcall> | <vardecl>
 <print> ::= 'print' <exp> ';'
 <if>       ::= 'if' <exp> '{' <cmd>* '}' 'else' '{' <cmd>* '}'
 <while>    ::= 'while' <exp> '{' <cmd>* '}'

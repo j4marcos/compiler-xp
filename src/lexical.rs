@@ -4,8 +4,8 @@ use std::fmt;
 pub struct Token {
     pub class: TokenClass,
     lexema: String,
-    column: usize,
-    line: usize,
+    pub column: usize,
+    pub line: usize,
 }
 
 impl Token {

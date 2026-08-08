@@ -101,20 +101,20 @@ impl std::fmt::Display for Expression {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Variable {
-    pub token: Token,
+    pub name: Token,
     pub expression: Expression,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Function {
-    pub token: Token,
+    pub name: Token,
     pub parameters: Vec<Token>,
     pub code_block: CodeBlock,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Identifier {
     Variable(Variable),
     Function(Function),
@@ -123,15 +123,15 @@ pub enum Identifier {
 #[derive(Debug)]
 pub struct Program {
     pub declarations: Vec<Identifier>,
-    pub commands: Vec<Command>,
+    // pub commands: Vec<Command>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CodeBlock {
     pub commands: Vec<Command>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Command {
     If {
         condition: Expression,
@@ -382,7 +382,7 @@ fn extract_variable_declaration(tokens: &mut VecDeque<Token>) -> Identifier {
     let expression = extract_expression(tokens);
     consume_token_class(tokens, TokenClass::Semicolon);
     return Identifier::Variable(Variable {
-        token: name,
+        name,
         expression,
     });
 }
@@ -428,7 +428,7 @@ fn extract_function_declaration(tokens: &mut VecDeque<Token>) -> Identifier {
     consume_token_class(tokens, TokenClass::RightParentheses);
     let code_block = get_block_commands(tokens);
     Identifier::Function(Function {
-        token: name,
+        name,
         parameters,
         code_block,
     })
@@ -445,18 +445,14 @@ fn get_init_declarations(tokens: &mut VecDeque<Token>) -> Vec<Identifier> {
                     Some(keyword) => match keyword {
                         KeyWord::Func => declarations.push(extract_function_declaration(tokens)),
                         KeyWord::Var => declarations.push(extract_variable_declaration(tokens)),
-                        KeyWord::Main => {
-                            return declarations;
-                        }
                         _ => handle_sintax_error(
-                            "only declarations of variables or functions are avaiable before main",
+                            "only declarations of variables or functions are avaiable in global scope",
                         ),
                     },
                     None => unreachable!(),
                 }
             }
-            Some(_) => handle_sintax_error("expecting declaration or 'main'"),
-            None => handle_sintax_error("unexpected end of file, expecting 'main'"),
+            _ => return declarations
         }
     }
 }
@@ -616,11 +612,7 @@ pub fn build_program(tokens_list: TokenList) -> Program {
 
     let declarations = get_init_declarations(&mut tokens);
 
-    consume_token_class(&mut tokens, TokenClass::KeyWord);
-    let CodeBlock { commands } = get_block_commands(&mut tokens);
-
     Program {
-        declarations,
-        commands,
+        declarations
     }
 }

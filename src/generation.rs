@@ -5,21 +5,47 @@ const OUTPUT_TEMPLATE: &str = r#".section .bss
 
 .section .text
 .globl _start
+{lib}
 _start:
-{code}
+{main}
 call imprime_num
 call sair
 .include "runtime.s"
 "#;
 
+struct Code {
+    text: String,
+    local: Function,
+    global: Vec<String>,
+}
+
+impl Code {
+    fn push_str(&mut self, string: &str) {
+        self.text.push_str(string)
+    }
+    fn len(&self) -> usize {
+        self.text.len()
+    }
+}
+
+fn generate_function_call(name: &String, parameters: &Vec<Expression>, code: &mut Code) {
+    for expression in parameters.iter().rev() {
+        evaluate_expression(expression, code);
+        code.push_str("push %rax\n");
+    }
+    code.push_str(&format!("call {}\n", name));
+    code.push_str(&format!("add ${}, %rsp\n", 8 * parameters.len()));
+}
+
 /// Evaluates an expression leaving the result in %rax.
-fn evaluate_expression(expression: &Expression, code: &mut String) {
+fn evaluate_expression(expression: &Expression, code: &mut Code) {
     match expression {
         Expression::NumberLiteral(number) => {
             code.push_str(&format!("mov ${}, %rax\n", number));
         }
         Expression::Identifier(name) => {
-            code.push_str(&format!("mov {}, %rax\n", name));
+            let rbp_position = find_variable_stack_index(name, &code.local, &code.global);
+            code.push_str(&format!("mov {}, %rax\n", rbp_position));
         }
         Expression::UnaryOperation { operator, operand } => {
             evaluate_expression(operand, code);
@@ -102,11 +128,13 @@ fn evaluate_expression(expression: &Expression, code: &mut String) {
                 Operator::Not => unreachable!("invalid binary operator"),
             }
         }
-        Expression::FunctionCall { name, parameters } => todo!(),
+        Expression::FunctionCall { name, parameters } => {
+            generate_function_call(name, parameters, code)
+        }
     }
 }
 
-fn evaluate_command(command: &Command, code: &mut String) {
+fn evaluate_command(command: &Command, code: &mut Code) {
     match command {
         Command::If {
             condition,
@@ -142,87 +170,169 @@ fn evaluate_command(command: &Command, code: &mut String) {
         }
         Command::Return { expression } => {
             evaluate_expression(expression, code);
-            // pula pro final da func
-            code.push_str("jmp Lretorno\n");
+
+            // clear_local_stack
+            code.push_str(&format!(
+                "add ${}, %rsp\n",
+                8 * count_local_variables(&code.local)
+            ));
+
+            code.push_str("pop %rbp\n");
+            code.push_str("ret\n");
         }
         Command::Print { expression } => {
             evaluate_expression(expression, code);
             code.push_str("call imprime_num\n");
         }
-        Command::FunctionCall { name, parameters } => todo!(),
-        Command::Declaration { identifier } => todo!(),
+        Command::FunctionCall { name, parameters } => {
+            generate_function_call(name, parameters, code);
+        }
+        Command::Declaration { identifier } => match identifier {
+            Identifier::Variable(Variable { name, expression }) => {
+                evaluate_expression(expression, code);
+                let rbp_position =
+                    find_variable_stack_index(name.get_lexema(), &code.local, &code.global);
+                code.push_str(&format!("mov, %rax, {}\n", rbp_position));
+            }
+            Identifier::Function(_) => {
+                panic!("function cant be declared inside another function");
+            }
+        },
     }
 }
 
-fn generate_commands(commands: &Vec<Command>, code: &mut String) {
+fn generate_commands(commands: &Vec<Command>, code: &mut Code) {
     for cmd in commands {
         evaluate_command(cmd, code);
     }
 }
 
-fn generate_bss(program: &Program) -> String {
-    let mut bss = String::new();
+fn generate_global_variables(program: &Program) -> String {
+    let mut text = String::new();
     for identifier in &program.declarations {
         if let Identifier::Variable(variable) = identifier {
-            let name = variable.token.get_lexema();
-            bss.push_str(&format!(".lcomm {}, 8\n", name));
+            let name = variable.name.get_lexema();
+            text.push_str(&format!(".lcomm {}, 8\n", name));
         }
     }
-    bss
+    text
 }
 
-fn generate_lib(program: &Program) -> String {
-    let mut lib = String::new();
+// é feito varias vezes na recurção o calculo, seria bom salvar o valor na struct Function
+fn count_local_variables(function: &Function) -> usize {
+    return function
+        .code_block
+        .commands
+        .iter()
+        .filter(|cmd| {
+            matches!(
+                cmd,
+                Command::Declaration {
+                    identifier: Identifier::Variable(_),
+                }
+            )
+        })
+        .count();
+}
+
+// ŕ feito varias vezes na recursão o calculo, seria bom salvar o valor dentro da struct da Variable;
+fn find_variable_stack_index(name: &String, function: &Function, global: &Vec<String>) -> String {
+    // procurar em qual lista de declarações esta a variavel
+
+    // local
+    if let Some(index) = function
+        .code_block
+        .commands
+        .iter()
+        .filter_map(|cmd| match cmd {
+            Command::Declaration {
+                identifier: Identifier::Variable(v),
+            } => Some(v.name.get_lexema()),
+            _ => None,
+        })
+        .position(|n| n == name)
+    {
+        return format!("{}(%rbp)", 8 * index);
+    }
+
+    // params
+    if let Some(mut index) = function
+        .parameters
+        .iter()
+        .position(|p| p.get_lexema() == name)
+    {
+        index = 8 * count_local_variables(function) + 8 * 2 + 8 * index;
+
+        return format!("{}(%rbp)", index);
+    }
+
+    // global
+    if global.iter().find(|g| g == &name).is_some() {
+        return name.to_string();
+    }
+
+    panic!("cannot use a variable without declare it first")
+
+    // para usar uma variavel -> pega o valor da expressão e coloca em rax, de rax identifica qual é a posição na pilha dessa variavel:
+    // variavel parametro da função : posição em RBP + numero de variaveis locais * 8 + 16 (metadata) + 8 * index da parametro
+    // variavel local declarada : posição em RBP + ordem de declaração da variavel no local * 8
+}
+
+fn generate_functions(program: &Program) -> String {
+    let mut text: String = String::new();
+    let mut global_variables_names: Vec<String> = Vec::new();
     for identifier in &program.declarations {
-        if let Identifier::Function(Function {
-            token,
-            parameters,
-            code_block,
-        }) = identifier
-        {
-            let name = token.get_lexema();
-
-
-            lib.push_str(&format!("{}:\n", name));
-            lib.push_str("push %rbp\n");
-            lib.push_str("mov %rsp, %rbp\n");
-        }
-    }
-    lib
-}
-
-fn generate_main(program: &Program) -> String {
-    let mut code = String::new();
-
-    generate_declarations(&program.declarations, &mut code);
-    generate_commands(&program.commands, &mut code);
-    // fim da main
-    code.push_str("Lretorno:\n");
-    code
-}
-
-fn generate_declarations(declarations: &Vec<Identifier>, code: &mut String) {
-    for identifier in declarations {
         match identifier {
-            Identifier::Function(Function {
-                token,
-                parameters,
-                code_block,
-            }) => {
-                // nessa versão, não pode declarar funções no corpo da main
+            Identifier::Variable(variable) => {
+                let name = variable.name.get_lexema().to_string();
+                global_variables_names.push(name);
             }
-            Identifier::Variable(Variable { token, expression }) => {
-                let name = token.get_lexema();
-                evaluate_expression(&expression, code);
-                code.push_str(&format!("mov %rax, {}\n", name));
+            Identifier::Function(function) => {
+                let mut code = Code {
+                    local: function.clone(),
+                    global: global_variables_names.clone(),
+                    text: String::new(),
+                };
+
+                let name = code.local.name.get_lexema();
+                text.push_str(&format!("{}:\n", name));
+                text.push_str("push %rbp\n");
+                text.push_str(&format!(
+                    "sub ${}, %rsp\n",
+                    8 * count_local_variables(function)
+                ));
+                text.push_str("mov %rsp, %rbp\n");
+                generate_commands(&function.code_block.commands, &mut code);
+                text.push_str(&code.text);
             }
         }
     }
+    text
+}
+
+fn generate_call_main(program: &Program) -> String {
+    let mut text = String::new();
+
+    let Some(Identifier::Function(main)) = program
+        .declarations
+        .iter()
+        .find(|d| matches!(d, Identifier::Function(f) if f.name.get_lexema() == "main"))
+    else {
+        panic!("program must have a main function")
+    };
+
+    // atribui argumentos do programa
+    text.push_str("pop %rdi \n"); // pop argc
+
+    text.push_str("call main\n");
+    text.push_str(&format!("add ${}, %rsp\n\n", 8 * main.parameters.len()));
+
+    return text;
 }
 
 pub fn generate_assembly(program: &Program) -> String {
     OUTPUT_TEMPLATE
-        .replace("{bss}", &generate_bss(program))
-        .replace("{lib}", &generate_lib(program))
-        .replace("{main}", &generate_main(program))
+        .replace("{bss}", &generate_global_variables(program))
+        .replace("{lib}", &generate_functions(program))
+        .replace("{main}", &generate_call_main(program))
 }

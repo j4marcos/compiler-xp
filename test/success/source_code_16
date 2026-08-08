@@ -5,7 +5,7 @@ func add(a, b) {
  return a + b;
 }
 
-main {
+func main {
  var acc = 0;
  while m + 1 > n {
  m = m - n;

@@ -6,24 +6,14 @@ fn handle_semantic_error(reason: &str) -> ! {
     std::process::exit(1);
 }
 
-fn check_variable_is_declareted(
-    name: &String,
-    declarations: &HashSet<IdentifierLeaf>,
-) {
-    if declarations .iter()
-    .find(|p| &p.name == name)
-    .is_none() {
+fn check_variable_is_declareted(name: &String, declarations: &HashSet<IdentifierLeaf>) {
+    if declarations.iter().find(|p| &p.name == name).is_none() {
         handle_semantic_error(&format!("variable '{}' used before declaration", name));
     }
 }
 
-fn check_function_is_declared(
-    name: &String,
-    declarations: &HashSet<IdentifierLeaf>,
-) {
-    if declarations .iter()
-    .find(|p| &p.name == name)
-    .is_none() {
+fn check_function_is_declared(name: &String, declarations: &HashSet<IdentifierLeaf>) {
+    if declarations.iter().find(|p| &p.name == name).is_none() {
         handle_semantic_error(&format!("function '{}' used before declaration", name));
     }
 }
@@ -79,10 +69,12 @@ fn check_command(
         } => {
             check_expression(&condition, declared, scope);
 
-            let (mut local_declarations, true_block_scope) = create_local_scope(declared, scope, "true_block".to_string());
+            let (mut local_declarations, true_block_scope) =
+                create_local_scope(declared, scope, "true_block".to_string());
             check_code_block(true_block, &mut local_declarations, &Some(true_block_scope));
 
-            let (mut local_declarations, false_block_scope) = create_local_scope(declared, scope, "false_block".to_string());
+            let (mut local_declarations, false_block_scope) =
+                create_local_scope(declared, scope, "false_block".to_string());
             check_code_block(
                 false_block,
                 &mut local_declarations,
@@ -92,7 +84,8 @@ fn check_command(
         Command::While { condition, block } => {
             check_expression(&condition, declared, scope);
 
-            let (mut local_declarations, while_block_scope) = create_local_scope(declared, scope, "while".to_string());
+            let (mut local_declarations, while_block_scope) =
+                create_local_scope(declared, scope, "while".to_string());
             check_code_block(block, &mut local_declarations, &Some(while_block_scope));
         }
         Command::Return { expression } => {
@@ -124,7 +117,7 @@ fn check_code_block(
 #[derive(Clone, Eq, Hash, PartialEq)]
 struct IdentifierLeaf {
     name: String,
-    scope: Option<String>
+    scope: Option<String>,
 }
 
 fn create_local_scope(
@@ -146,7 +139,7 @@ fn validade_declaration(
 ) {
     match identifier {
         Identifier::Variable(variable) => {
-            let name = variable.token.get_lexema();
+            let name = variable.name.get_lexema();
 
             if declared
                 .iter()
@@ -166,7 +159,7 @@ fn validade_declaration(
             });
         }
         Identifier::Function(function) => {
-            let name = function.token.get_lexema();
+            let name = function.name.get_lexema();
             if declared
                 .iter()
                 .find(|p| &p.name == name && &p.scope == scope)
@@ -210,12 +203,15 @@ pub fn validate_program(program: &Program) {
         validade_declaration(identifier, &mut declared, &None);
     }
 
-    for command in &program.commands {
-        check_command(command, &mut declared, &None);
-    }
-
-    let Some(Command::Return { expression }) = program.commands.last() else {
-        handle_semantic_error("main block must have return expression for last command")
+    let Some(Identifier::Function(main)) = program
+        .declarations
+        .iter()
+        .find(|d| matches!(d, Identifier::Function(f) if f.name.get_lexema() == "main"))
+    else {
+        handle_semantic_error("program must have a main function");
     };
-    check_expression(expression, &declared, &None)
+
+    if !matches!(main.code_block.commands.last(), Some(Command::Return { .. })) {
+        handle_semantic_error("main block must have return expression for last command");
+    }
 }
