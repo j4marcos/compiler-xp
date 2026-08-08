@@ -28,7 +28,7 @@ fn evaluate_expression(expression: &Expression, code: &mut String) {
                     code.push_str("cmp $0, %rax\n");
                     code.push_str("sete %al\n");
                     code.push_str("movzbq %al, %rax\n");
-                },
+                }
                 _ => unreachable!("invalid unary operator"),
             }
         }
@@ -102,6 +102,7 @@ fn evaluate_expression(expression: &Expression, code: &mut String) {
                 Operator::Not => unreachable!("invalid binary operator"),
             }
         }
+        Expression::FunctionCall { name, parameters } => todo!(),
     }
 }
 
@@ -138,16 +139,18 @@ fn evaluate_command(command: &Command, code: &mut String) {
         } => {
             evaluate_expression(expression, code);
             code.push_str(&format!("mov %rax, {}\n", variable.get_lexema()));
-        }, 
+        }
         Command::Return { expression } => {
             evaluate_expression(expression, code);
             // pula pro final da func
             code.push_str("jmp Lretorno\n");
-        },
+        }
         Command::Print { expression } => {
             evaluate_expression(expression, code);
             code.push_str("call imprime_num\n");
         }
+        Command::FunctionCall { name, parameters } => todo!(),
+        Command::Declaration { identifier } => todo!(),
     }
 }
 
@@ -160,7 +163,7 @@ fn generate_commands(commands: &Vec<Command>, code: &mut String) {
 fn generate_bss(program: &Program) -> String {
     let mut bss = String::new();
     for identifier in &program.declarations {
-        if let Identifier::Variable(variable)  = identifier {
+        if let Identifier::Variable(variable) = identifier {
             let name = variable.token.get_lexema();
             bss.push_str(&format!(".lcomm {}, 8\n", name));
         }
@@ -171,34 +174,49 @@ fn generate_bss(program: &Program) -> String {
 fn generate_lib(program: &Program) -> String {
     let mut lib = String::new();
     for identifier in &program.declarations {
-        if let Identifier::Function(function)  = identifier {
-            let name = function.token.get_lexema();
+        if let Identifier::Function(Function {
+            token,
+            parameters,
+            code_block,
+        }) = identifier
+        {
+            let name = token.get_lexema();
+
 
             lib.push_str(&format!("{}:\n", name));
-            lib.push_str( "mov %rsp, %rbp\n");
-
+            lib.push_str("push %rbp\n");
+            lib.push_str("mov %rsp, %rbp\n");
         }
     }
     lib
 }
 
-
-
 fn generate_main(program: &Program) -> String {
     let mut code = String::new();
 
-    generate_attribuitions(&program.declarations, &mut code);
+    generate_declarations(&program.declarations, &mut code);
     generate_commands(&program.commands, &mut code);
     // fim da main
     code.push_str("Lretorno:\n");
     code
 }
 
-fn generate_attribuitions(declarations: &Vec<Variable>, code: &mut String) {
-    for variable in declarations {
-        let name = variable.identifier.get_lexema();
-        evaluate_expression(&variable.expression, code);
-        code.push_str(&format!("mov %rax, {}\n", name));
+fn generate_declarations(declarations: &Vec<Identifier>, code: &mut String) {
+    for identifier in declarations {
+        match identifier {
+            Identifier::Function(Function {
+                token,
+                parameters,
+                code_block,
+            }) => {
+                // nessa versão, não pode declarar funções no corpo da main
+            }
+            Identifier::Variable(Variable { token, expression }) => {
+                let name = token.get_lexema();
+                evaluate_expression(&expression, code);
+                code.push_str(&format!("mov %rax, {}\n", name));
+            }
+        }
     }
 }
 

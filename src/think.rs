@@ -101,3 +101,22 @@ pontos a considerar
 //  pop %rbp
 //  ret
 // Dessa forma, é possível implementar funções com número arbitrário de parâmetros e variáveis locais. Essas funções podem ser diretamente ou mutuamente recursivas.
+
+
+
+
+
+
+
+
+
+
+
+
+// RSP = topo da pilha (muda o tempo todo).
+// RBP = base do frame da função atual (fica fixo enquanto ela roda).
+
+
+scopo de bloco:
+
+

@@ -24,15 +24,20 @@ and e or, operadores booleanos <= e >=, e operador %. E o return pode ser usado 
 bloco (obrigatório no bloco principal).
 
 ```
-<programa> ::= <decl>* '{' <cmd>* <return> '}'
-<decl>     ::= <var> '=' <exp> ';'
-<var>      ::= <letra><letra_digito>*
-<cmd>      ::= <if> | <while> | <atrib> | <return> | <print>
+<programa> ::= <decl>* 'main' '{' <cmd>* <return> '}'
+<ident>      ::= <letra><letra_digito>*
+<vardecl>     ::= 'var' <ident> '=' <exp> ';'
+<fundecl> ::= 'fun' <ident> '(' <arglist>? ')'
+'{' <vardecl>* <cmd>* <return> '}'
+<arglist> ::= <ident> | <ident> ',' <arglist>
+<cmd>      ::= <if> | <while> | <atrib> | <return> | <print> | <funcall>
 <print> ::= 'print' <exp> ';'
 <if>       ::= 'if' <exp> '{' <cmd>* '}' 'else' '{' <cmd>* '}'
 <while>    ::= 'while' <exp> '{' <cmd>* '}'
-<atrib>    ::= <var> '=' <exp> ';'
+<atrib>    ::= <ident> '=' <exp> ';'
 <return>   ::= 'return' <exp> ';'
+<funcall>  ::= <ident> '(' <params>? ')'
+<params>     ::= <exp> | <exp> ',' <params>
 
 <exp>      ::= <exp_or>
 <exp_or>   ::= <exp_and> (('or') <exp_and>)*
@@ -41,7 +46,7 @@ bloco (obrigatório no bloco principal).
 <exp_a>    ::= <exp_m> (('+' | '-') <exp_m>)*
 <exp_m>    ::= <exp_u> (('*' | '/' | '%') <exp_u>)*
 <exp_u>    ::= ('not') <exp_u> | <prim>
-<prim>     ::= <num> | <var> | '(' <exp> ')'
+<prim>     ::= <num> | <ident> | '(' <exp> ')' | <funcall>
 <num>      ::= <digito><digito>*
 ```
 
