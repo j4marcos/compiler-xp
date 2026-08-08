@@ -1,8 +1,7 @@
-use crate::syntax::*;
+use crate::{lexical::Token, syntax::*};
 
 const OUTPUT_TEMPLATE: &str = r#".section .bss
 {bss}
-
 .section .text
 .globl _start
 {lib}
@@ -166,7 +165,9 @@ fn evaluate_command(command: &Command, code: &mut Code) {
             expression,
         } => {
             evaluate_expression(expression, code);
-            code.push_str(&format!("mov %rax, {}\n", variable.get_lexema()));
+            let destination =
+                find_variable_stack_index(variable.get_lexema(), &code.local, &code.global);
+            code.push_str(&format!("mov %rax, {}\n", destination));
         }
         Command::Return { expression } => {
             evaluate_expression(expression, code);
@@ -192,7 +193,7 @@ fn evaluate_command(command: &Command, code: &mut Code) {
                 evaluate_expression(expression, code);
                 let rbp_position =
                     find_variable_stack_index(name.get_lexema(), &code.local, &code.global);
-                code.push_str(&format!("mov, %rax, {}\n", rbp_position));
+                code.push_str(&format!("mov %rax, {}\n", rbp_position));
             }
             Identifier::Function(_) => {
                 panic!("function cant be declared inside another function");
@@ -310,8 +311,43 @@ fn generate_functions(program: &Program) -> String {
     text
 }
 
+fn generate_global_variables_inicialization(Program { declarations }: &Program, text: &mut String) {
+    let global_names: Vec<String> = declarations
+        .iter()
+        .filter_map(|d| match d {
+            Identifier::Variable(v) => Some(v.name.get_lexema().to_string()),
+            _ => None,
+        })
+        .collect();
+
+    // inicializa variáveis globais
+    let global_scope = Function {
+        name: Token {
+            class: crate::lexical::TokenClass::KeyWord,
+            column: 0,
+            line: 0,
+            lexema: String::from(""),
+        },
+        parameters: vec![],
+        code_block: CodeBlock { commands: vec![] },
+    };
+    for identifier in declarations {
+        if let Identifier::Variable(variable) = identifier {
+            let mut code = Code {
+                local: global_scope.clone(),
+                global: global_names.clone(),
+                text: String::new(),
+            };
+            evaluate_expression(&variable.expression, &mut code);
+            code.push_str(&format!("mov %rax, {}\n", variable.name.get_lexema()));
+            text.push_str(&code.text);
+        }
+    }
+}
+
 fn generate_call_main(program: &Program) -> String {
     let mut text = String::new();
+    generate_global_variables_inicialization(program, &mut text);
 
     let Some(Identifier::Function(main)) = program
         .declarations
@@ -321,13 +357,12 @@ fn generate_call_main(program: &Program) -> String {
         panic!("program must have a main function")
     };
 
-    // atribui argumentos do programa
-    text.push_str("pop %rdi \n"); // pop argc
-
     text.push_str("call main\n");
-    text.push_str(&format!("add ${}, %rsp\n\n", 8 * main.parameters.len()));
+    if !main.parameters.is_empty() {
+        text.push_str(&format!("add ${}, %rsp\n", 8 * main.parameters.len()));
+    }
 
-    return text;
+    text
 }
 
 pub fn generate_assembly(program: &Program) -> String {

@@ -3,7 +3,7 @@ use std::fmt;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Token {
     pub class: TokenClass,
-    lexema: String,
+    pub(crate) lexema: String,
     pub column: usize,
     pub line: usize,
 }

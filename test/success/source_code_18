@@ -4,6 +4,6 @@ func f(x) {
   return y * z;
 }
 
-func main {
+func main() {
   return f(42);
 }

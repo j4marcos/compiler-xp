@@ -2,6 +2,6 @@ func double(x) {
   return x + x;
 }
 
-func main {
+func main() {
   return double(21);
 }

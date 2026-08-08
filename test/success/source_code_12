@@ -1,6 +1,7 @@
-n = 10;
-acc = 0;
-{
+var n = 10;
+var acc = 0;
+
+func main() {
   while n > 0 {
     print acc;
     if n % 2 == 0 {

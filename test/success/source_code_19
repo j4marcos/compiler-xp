@@ -6,6 +6,6 @@ func fat(n) {
   }
 }
 
-func main {
+func main() {
   return fat(5);
 }

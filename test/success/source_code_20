@@ -6,6 +6,6 @@ func mul(a, b) {
   return a * b;
 }
 
-func main {
+func main() {
   return mul(add(2, 3), add(4, 5));
 }
