@@ -62,6 +62,7 @@ Tipos: `num`, `list`, `bool`, `text`. Declarações tipadas, parâmetros tipados
 Bibliotecas prontas em `lib/`:
 - `numbers.lib` — `abs`, `max`, `min`, `sign`, `clamp`, `pow`, `isEven`, `isOdd`, `xor`, `factorial`
 - `lists.lib` — `count`, `sum`, `product`, `maximum`, `minimum`, `last`, `contains`, `indexOf`, `reverse`, `scale`, `pushAll`, `range`, `isEmpty` (também serve para `text`)
+- `print.lib` — `printNum`, `printBool`, `printList`, `printText` (wrappers do comando `print`)
 
 Exemplo:
 

@@ -125,3 +125,21 @@ func range(num n) list {
 func isEmpty(list xs) bool {
   return xs.len == 0;
 }
+
+func printList(list xs) num {
+  num i = 0;
+  while i < xs.len {
+    print xs[i];
+    i++;
+  }
+  return xs.len;
+}
+
+func printText(text t) num {
+  num i = 0;
+  while i < t.len {
+    print t[i];
+    i++;
+  }
+  return t.len;
+}

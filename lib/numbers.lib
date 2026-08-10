@@ -79,3 +79,17 @@ func factorial(num n) num {
   }
   return result;
 }
+
+func printNum(num x) num {
+  print x;
+  return x;
+}
+
+func printBool(bool x) num {
+  if x {
+    print 1;
+  } else {
+    print 0;
+  }
+  return 0;
+}
