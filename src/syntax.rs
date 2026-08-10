@@ -178,8 +178,15 @@ pub enum Identifier {
     Function(Function),
 }
 
+#[derive(Debug, Clone)]
+pub struct Import {
+    pub alias: String,
+    pub path: String,
+}
+
 #[derive(Debug)]
 pub struct Program {
+    pub imports: Vec<Import>,
     pub declarations: Vec<Identifier>,
 }
 
@@ -621,7 +628,42 @@ fn extract_function_declaration(tokens: &mut VecDeque<Token>) -> Identifier {
     })
 }
 
-fn get_init_declarations(tokens: &mut VecDeque<Token>) -> Vec<Identifier> {
+fn extract_import(tokens: &mut VecDeque<Token>) -> Import {
+    consume_token_class(tokens, TokenClass::KeyWord); // import
+    skip_whitespace(tokens);
+    let Some(alias_tok) = tokens.pop_front() else {
+        handle_sintax_error("import must have an alias");
+    };
+    if alias_tok.class != TokenClass::Identifier {
+        handle_sintax_error("import alias must be an identifier");
+    }
+    let alias = alias_tok.get_lexema().to_string();
+    if alias.contains("::") {
+        handle_sintax_error("import alias must be a simple identifier");
+    }
+    skip_whitespace(tokens);
+    let Some(from_tok) = tokens.front() else {
+        handle_sintax_error("expected 'from' after import alias");
+    };
+    if !is_keyword(from_tok, KeyWord::From) {
+        handle_sintax_error("expected 'from' after import alias");
+    }
+    consume_token_class(tokens, TokenClass::KeyWord); // from
+    skip_whitespace(tokens);
+    let Some(path_tok) = tokens.pop_front() else {
+        handle_sintax_error("import must have a path string");
+    };
+    if path_tok.class != TokenClass::StringLiteral {
+        handle_sintax_error("import path must be a string literal");
+    }
+    Import {
+        alias,
+        path: path_tok.get_lexema().clone(),
+    }
+}
+
+fn get_init_declarations(tokens: &mut VecDeque<Token>) -> (Vec<Import>, Vec<Identifier>) {
+    let mut imports: Vec<Import> = Vec::new();
     let mut declarations: Vec<Identifier> = Vec::new();
     loop {
         skip_whitespace(tokens);
@@ -629,6 +671,12 @@ fn get_init_declarations(tokens: &mut VecDeque<Token>) -> Vec<Identifier> {
         match tokens.front() {
             Some(token) if token.class == TokenClass::KeyWord => {
                 match KeyWord::from_lexema(token.get_lexema()) {
+                    Some(KeyWord::Import) => {
+                        if !declarations.is_empty() {
+                            handle_sintax_error("imports must appear before declarations");
+                        }
+                        imports.push(extract_import(tokens));
+                    }
                     Some(KeyWord::Func) => {
                         declarations.push(extract_function_declaration(tokens))
                     }
@@ -636,11 +684,11 @@ fn get_init_declarations(tokens: &mut VecDeque<Token>) -> Vec<Identifier> {
                         declarations.push(extract_variable_declaration(tokens))
                     }
                     _ => handle_sintax_error(
-                        "only typed variable or function declarations are available in global scope",
+                        "only imports, typed variables or function declarations are available in global scope",
                     ),
                 }
             }
-            _ => return declarations,
+            _ => return (imports, declarations),
         }
     }
 }
@@ -846,6 +894,9 @@ fn get_block_commands(tokens: &mut VecDeque<Token>) -> CodeBlock {
 
 pub fn build_program(tokens_list: TokenList) -> Program {
     let mut tokens = VecDeque::from(tokens_list.get_tokens());
-    let declarations = get_init_declarations(&mut tokens);
-    Program { declarations }
+    let (imports, declarations) = get_init_declarations(&mut tokens);
+    Program {
+        imports,
+        declarations,
+    }
 }

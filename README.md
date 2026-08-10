@@ -11,18 +11,20 @@ Compilador lê um programa da linguagem **Func** a partir de um arquivo de entra
 
 1. **Análise léxica** (`src/lexical.rs`) — classifica tokens (números, operadores, identificadores, palavras-chave, blocos, etc.).
 2. **Análise sintática** (`src/syntax.rs`) — monta a AST de expressões, declarações e funções.
-3. **Análise semântica** (`src/semantic.rs`) — valida tipos, declarações, escopos e existência de `main` com `return` final.
-4. **Geração de código** (`src/generation.rs`) — emite assembly; `_start` inicializa globais, chama `main`, imprime o valor em `%rax` via runtime e encerra.
+3. **Resolução de imports** (`src/resolve.rs`) — carrega bibliotecas e mescla símbolos `alias::nome` no programa.
+4. **Análise semântica** (`src/semantic.rs`) — valida tipos, declarações, escopos e existência de `main` com `return` final.
+5. **Geração de código** (`src/generation.rs`) — emite assembly; `_start` inicializa globais, chama `main`, imprime o valor em `%rax` via runtime e encerra.
 
 O assembly é impresso no terminal e salvo em `output/target_code.s`.
 
 
 ### Linguagem Func
 
-Tipos: `num`, `list`, `bool`, `text`. Declarações tipadas, parâmetros tipados, métodos (`x.f(args)` → `f(x, args)`), arrays dinâmicos com handle, `print`, comentários `//`. O programa deve ter `func main()` e o último comando de `main` deve retornar `num`/`bool`.
+Tipos: `num`, `list`, `bool`, `text`. Declarações tipadas, parâmetros tipados, métodos (`x.f(args)` → `f(x, args)`), arrays dinâmicos com handle, `print`, comentários `//`, **import** de bibliotecas. O programa deve ter `func main()` e o último comando de `main` deve retornar `num`/`bool`.
 
 ```
-<programa> ::= <decl>*
+<programa> ::= <import>* <decl>*
+<import>     ::= 'import' <ident> 'from' <string>
 <decl>       ::= <vardecl> | <fundecl>
 <vardecl>    ::= <tipo> <ident> '=' <exp> ';'
 <tipo>       ::= 'num' | 'list' | 'bool' | 'text'
@@ -39,6 +41,7 @@ Tipos: `num`, `list`, `bool`, `text`. Declarações tipadas, parâmetros tipados
              | <ident> '+=' <exp> ';' | ... | <ident> '++' ';'
 <return>     ::= 'return' <exp> ';'
 
+<ident>    ::= letter (letter|digit)* ('::' letter (letter|digit)*)*
 <exp>      ::= <exp_or> ('.' <ident> '(' <params>? ')')*
 ...
 <prim>     ::= <num> | <ident> | <ident> '[' <exp> ']' | '(' <exp> ')' | <funcall>
@@ -54,7 +57,22 @@ Tipos: `num`, `list`, `bool`, `text`. Declarações tipadas, parâmetros tipados
 
 **Métodos:** `recv.nome(args)` vira `nome(recv, args)`. Encadeável. O builtin `push(list|text, num)` devolve o handle. Comprimento via **`a.len`** ou `a.len()` (não existe mais a forma `len(a)` como keyword).
 
+**Imports:** `import ss from "./sum_lists"` carrega o arquivo (path relativo ao fonte). A lib pode ter funções e globais, **sem** `main` e **sem** imports aninhados. Símbolos entram no escopo como `ss::count` / `ss::var`. Chamadas: `ss::count(x)` ou `x.ss::count()`.
+
+Bibliotecas prontas em `lib/`:
+- `numbers.lib` — `abs`, `max`, `min`, `sign`, `clamp`, `pow`, `isEven`, `isOdd`, `xor`, `factorial`
+- `lists.lib` — `count`, `sum`, `product`, `maximum`, `minimum`, `last`, `contains`, `indexOf`, `reverse`, `scale`, `pushAll`, `range`, `isEmpty` (também serve para `text`)
+
 Exemplo:
+
+```
+import ss from "./sum_lists"
+
+func main() num {
+  list x = [1, 2, 3];
+  return x.ss::count();
+}
+```
 
 ```
 func abs(num x) num {
@@ -81,7 +99,7 @@ Estrutura
 
 ### Token
 
-Keywords: `if`, `else`, `while`, `return`, `print`, `and`, `or`, `not`, `func`, `main`, `num`, `list`, `bool`, `text`, `true`, `false`.
+Keywords: `if`, `else`, `while`, `return`, `print`, `and`, `or`, `not`, `func`, `main`, `num`, `list`, `bool`, `text`, `true`, `false`, `import`, `from`.
 
 ### Expression / Command
 
@@ -151,6 +169,9 @@ done
 | `28` | método `x.abs()` | `3` |
 | `29` | chain `mult.push.sum` | `14` |
 | `30` | bool / text / `[]` | `246` |
+| `34` | `import` + `x.ss::count()` | `3` |
+| `35`–`36` | `lib/numbers.lib` | `42`, `12` |
+| `37`–`39` | `lib/lists.lib` (list/text) | `42`, `15`, `111` |
 
 
 Testes de erro

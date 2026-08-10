@@ -93,6 +93,8 @@ pub enum KeyWord {
     Text,
     True,
     False,
+    Import,
+    From,
 }
 
 impl KeyWord {
@@ -111,6 +113,8 @@ impl KeyWord {
             "text" => Some(KeyWord::Text),
             "true" => Some(KeyWord::True),
             "false" => Some(KeyWord::False),
+            "import" => Some(KeyWord::Import),
+            "from" => Some(KeyWord::From),
             _ => None,
         }
     }
@@ -160,7 +164,7 @@ fn is_digit(c: char) -> bool {
 }
 
 fn is_letter_or_digit(c: char) -> bool {
-    is_letter(c) || is_digit(c)
+    is_letter(c) || is_digit(c) || matches!(c, ':')
 }
 
 fn read_identifier(chars: &[char], read_index: usize) -> usize {
@@ -198,12 +202,17 @@ fn read_token(chars: &[char], read_index: usize, column: usize, line: usize) -> 
         'a'..='z' | 'A'..='Z' => {
             let end = read_identifier(chars, read_index);
             let lexema: String = chars[read_index..end].iter().collect();
-            let class = match lexema.as_str() {
-                "and" => TokenClass::AndOperator,
-                "not" => TokenClass::NotOperator,
-                "or" => TokenClass::OrOperator,
-                _ if KeyWord::from_lexema(&lexema).is_some() => TokenClass::KeyWord,
-                _ => TokenClass::Identifier,
+            // Keywords/operators only on simple names (no `::`)
+            let class = if lexema.contains("::") {
+                TokenClass::Identifier
+            } else {
+                match lexema.as_str() {
+                    "and" => TokenClass::AndOperator,
+                    "not" => TokenClass::NotOperator,
+                    "or" => TokenClass::OrOperator,
+                    _ if KeyWord::from_lexema(&lexema).is_some() => TokenClass::KeyWord,
+                    _ => TokenClass::Identifier,
+                }
             };
             (Token::new(class, lexema, column, line), end)
         }

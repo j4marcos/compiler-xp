@@ -1,0 +1,127 @@
+// Utilitários para list / text (mesmo layout: handle com elementos num)
+
+func count(list xs) num {
+  return xs.len;
+}
+
+func sum(list xs) num {
+  num i = 0;
+  num acc = 0;
+  while i < xs.len {
+    acc = acc + xs[i];
+    i++;
+  }
+  return acc;
+}
+
+func product(list xs) num {
+  num i = 0;
+  num acc = 1;
+  while i < xs.len {
+    acc = acc * xs[i];
+    i++;
+  }
+  return acc;
+}
+
+func maximum(list xs) num {
+  num best = xs[0];
+  num i = 1;
+  while i < xs.len {
+    if xs[i] > best {
+      best = xs[i];
+    } else {
+      best = best;
+    }
+    i++;
+  }
+  return best;
+}
+
+func minimum(list xs) num {
+  num best = xs[0];
+  num i = 1;
+  while i < xs.len {
+    if xs[i] < best {
+      best = xs[i];
+    } else {
+      best = best;
+    }
+    i++;
+  }
+  return best;
+}
+
+func last(list xs) num {
+  return xs[xs.len - 1];
+}
+
+func contains(list xs, num v) bool {
+  num i = 0;
+  while i < xs.len {
+    if xs[i] == v {
+      return true;
+    } else {
+      i++;
+    }
+  }
+  return false;
+}
+
+func indexOf(list xs, num v) num {
+  num i = 0;
+  while i < xs.len {
+    if xs[i] == v {
+      return i;
+    } else {
+      i++;
+    }
+  }
+  return 0 - 1;
+}
+
+func reverse(list xs) list {
+  num i = 0;
+  num j = xs.len - 1;
+  num tmp = 0;
+  while i < j {
+    tmp = xs[i];
+    xs[i] = xs[j];
+    xs[j] = tmp;
+    i++;
+    j = j - 1;
+  }
+  return xs;
+}
+
+func scale(list xs, num k) list {
+  num i = 0;
+  while i < xs.len {
+    xs[i] = xs[i] * k;
+    i++;
+  }
+  return xs;
+}
+
+func pushAll(list dst, list src) list {
+  num i = 0;
+  while i < src.len {
+    dst.push(src[i]);
+    i++;
+  }
+  return dst;
+}
+
+func range(num n) list {
+  list out = [];
+  num i = 0;
+  while i < n {
+    out.push(i);
+    i++;
+  }
+  return out;
+}
+
+func isEmpty(list xs) bool {
+  return xs.len == 0;
+}

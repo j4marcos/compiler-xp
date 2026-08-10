@@ -1,0 +1,24 @@
+// lib/lists.lib mutate — esperado: 15
+import ls from "../../lib/lists.lib"
+
+func main() num {
+  list a = [1, 2, 3];
+  a.ls::reverse();
+  num r = a.ls::last();
+  list b = [1, 2, 3];
+  num sc = b.ls::scale(2).ls::sum();
+  bool has = [10, 20, 30].ls::contains(20);
+  bool empty = [1].ls::isEmpty();
+  num extra = 0;
+  if has {
+    extra = extra + 1;
+  } else {
+    extra = extra;
+  }
+  if empty {
+    extra = extra;
+  } else {
+    extra = extra + 1;
+  }
+  return r + sc + extra;
+}

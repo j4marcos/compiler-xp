@@ -1,0 +1,7 @@
+// import + método namespaced — esperado: 3
+import ss from "./sum_lists"
+
+func main() num {
+  list x = [1, 2, 3];
+  return x.ss::count();
+}

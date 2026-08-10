@@ -113,6 +113,7 @@ fn types_compatible(expected: Type, actual: Type) -> bool {
     expected == actual
         || (expected == Type::Bool && matches!(actual, Type::Num | Type::Bool))
         || (expected == Type::Num && actual == Type::Bool)
+        || (expected.is_array_like() && actual.is_array_like())
 }
 
 fn check_expression(

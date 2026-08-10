@@ -12,6 +12,11 @@ call sair
 .include "runtime.s"
 "#;
 
+/// Assembly labels cannot contain `::`; map `ss::count` → `ss__count`.
+fn asm_name(name: &str) -> String {
+    name.replace("::", "__")
+}
+
 struct Code {
     text: String,
     local: Function,
@@ -61,7 +66,7 @@ fn generate_function_call(name: &String, parameters: &Vec<Expression>, code: &mu
                 evaluate_expression(expression, code);
                 code.push_str("push %rax\n");
             }
-            code.push_str(&format!("call {}\n", name));
+            code.push_str(&format!("call {}\n", asm_name(name)));
             code.push_str(&format!("add ${}, %rsp\n", 8 * parameters.len()));
         }
     }
@@ -213,6 +218,10 @@ fn store_rax_to_variable(name: &String, code: &mut Code) {
     code.push_str(&format!("mov %rax, {}\n", destination));
 }
 
+fn label_id(code: &Code) -> String {
+    format!("{}_{}", asm_name(code.local.name.get_lexema()), code.len())
+}
+
 fn evaluate_command(command: &Command, code: &mut Code) {
     match command {
         Command::If {
@@ -220,7 +229,7 @@ fn evaluate_command(command: &Command, code: &mut Code) {
             true_block,
             false_block,
         } => {
-            let label = code.len();
+            let label = label_id(code);
             evaluate_expression(condition, code);
             code.push_str("cmp $0, %rax\n");
             code.push_str(&format!("jz Lfalso{}\n", label));
@@ -231,7 +240,7 @@ fn evaluate_command(command: &Command, code: &mut Code) {
             code.push_str(&format!("Lfim{}:\n", label));
         }
         Command::While { condition, block } => {
-            let label = code.len();
+            let label = label_id(code);
             code.push_str(&format!("Linicio{}:\n", label));
             evaluate_expression(condition, code);
             code.push_str("cmp $0, %rax\n");
@@ -299,7 +308,7 @@ fn generate_global_variables(program: &Program) -> String {
     let mut text = String::new();
     for identifier in &program.declarations {
         if let Identifier::Variable(variable) = identifier {
-            let name = variable.name.get_lexema();
+            let name = asm_name(variable.name.get_lexema());
             text.push_str(&format!(".lcomm {}, 8\n", name));
         }
     }
@@ -348,7 +357,7 @@ fn find_variable_stack_index(name: &String, function: &Function, global: &Vec<St
     }
 
     if global.iter().any(|g| g == name) {
-        return name.to_string();
+        return asm_name(name);
     }
 
     panic!("cannot use a variable without declare it first")
@@ -371,7 +380,7 @@ fn generate_functions(program: &Program) -> String {
                 text: String::new(),
             };
 
-            let name = code.local.name.get_lexema();
+            let name = asm_name(code.local.name.get_lexema());
             text.push_str(&format!("{}:\n", name));
             text.push_str("push %rbp\n");
             text.push_str(&format!(
@@ -386,7 +395,8 @@ fn generate_functions(program: &Program) -> String {
     text
 }
 
-fn generate_global_variables_inicialization(Program { declarations }: &Program, text: &mut String) {
+fn generate_global_variables_inicialization(program: &Program, text: &mut String) {
+    let declarations = &program.declarations;
     let global_names: Vec<String> = declarations
         .iter()
         .filter_map(|d| match d {
@@ -420,8 +430,38 @@ fn generate_global_variables_inicialization(Program { declarations }: &Program, 
     }
 }
 
+fn push_main_argv_parameter(param_index: usize, typ: Type, text: &mut String) {
+    // argv layout at __argv_base: argc, argv[0], argv[1], ...
+    // user arg for param i is argv[i+1] at offset 8*(i+2)
+    let argc_needed = param_index + 2;
+    let argv_offset = 8 * (param_index + 2);
+    text.push_str("mov __argv_base(%rip), %rax\n");
+    text.push_str("mov (%rax), %rcx\n");
+    text.push_str(&format!("cmp ${}, %rcx\n", argc_needed));
+    text.push_str(&format!("jl main_arg_default_{}\n", param_index));
+    text.push_str(&format!("mov {}(%rax), %rdi\n", argv_offset));
+    match typ {
+        Type::Num | Type::Bool => text.push_str("call parse_num\n"),
+        // text/list: each byte of the argv string becomes one num in the array
+        Type::Text | Type::List => text.push_str("call parse_text\n"),
+    }
+    text.push_str(&format!("jmp main_arg_done_{}\n", param_index));
+    text.push_str(&format!("main_arg_default_{}:\n", param_index));
+    match typ {
+        Type::Text | Type::List => {
+            text.push_str("xor %rdi, %rdi\n");
+            text.push_str("call array_new\n");
+        }
+        Type::Num | Type::Bool => text.push_str("xor %rax, %rax\n"),
+    }
+    text.push_str(&format!("main_arg_done_{}:\n", param_index));
+    text.push_str("push %rax\n");
+}
+
 fn generate_call_main(program: &Program) -> String {
     let mut text = String::new();
+    // preserve argc/argv before stack is used for globals / calls
+    text.push_str("mov %rsp, __argv_base(%rip)\n");
     generate_global_variables_inicialization(program, &mut text);
 
     let Some(Identifier::Function(main)) = program
@@ -431,6 +471,10 @@ fn generate_call_main(program: &Program) -> String {
     else {
         panic!("program must have a main function")
     };
+
+    for (i, param) in main.parameters.iter().enumerate().rev() {
+        push_main_argv_parameter(i, param.typ, &mut text);
+    }
 
     text.push_str("call main\n");
     if !main.parameters.is_empty() {

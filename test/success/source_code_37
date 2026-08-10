@@ -1,0 +1,14 @@
+// lib/lists.lib — esperado: 42
+import ls from "../../lib/lists.lib"
+
+func main() num {
+  list a = [1, 2, 3, 4];
+  num s = a.ls::sum();
+  num p = [1, 2, 3].ls::product();
+  num mx = [1, 9, 3].ls::maximum();
+  num mn = [4, 1, 7].ls::minimum();
+  num last = a.ls::last();
+  num cnt = a.ls::count();
+  num idx = a.ls::indexOf(3);
+  return s + p + mx + mn + last + cnt + idx + 6;
+}

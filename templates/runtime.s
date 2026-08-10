@@ -221,6 +221,73 @@ array_pop_ok:
   pop %rbx
   ret
 
+# parse_num(cstr in %rdi) -> i64 in %rax
+parse_num:
+  xor %rax, %rax
+  xor %r8, %r8                # sign flag
+  cmpb $'-', (%rdi)
+  jne parse_num_loop
+  mov $1, %r8
+  inc %rdi
+parse_num_loop:
+  movzbq (%rdi), %rcx
+  test %rcx, %rcx
+  jz parse_num_done
+  cmp $'0', %rcx
+  jb parse_num_done
+  cmp $'9', %rcx
+  ja parse_num_done
+  sub $'0', %rcx
+  imul $10, %rax
+  add %rcx, %rax
+  inc %rdi
+  jmp parse_num_loop
+parse_num_done:
+  test %r8, %r8
+  jz parse_num_ret
+  neg %rax
+parse_num_ret:
+  ret
+
+# parse_text(cstr in %rdi) -> text handle in %rax
+parse_text:
+  push %rbx
+  push %r12
+  push %r13
+  mov %rdi, %r12              # string
+  xor %rcx, %rcx
+parse_text_len:
+  cmpb $0, (%rdi)
+  je parse_text_len_done
+  inc %rcx
+  inc %rdi
+  jmp parse_text_len
+parse_text_len_done:
+  mov %rcx, %r13              # len
+  mov %r13, %rdi
+  call array_new
+  mov %rax, %rbx              # handle
+  xor %rcx, %rcx
+parse_text_copy:
+  cmp %r13, %rcx
+  jge parse_text_done
+  movzbq (%r12, %rcx), %rdx
+  mov (%rbx), %rax            # data block
+  mov %rcx, %rdi
+  imul $8, %rdi
+  add $16, %rdi
+  add %rax, %rdi
+  mov %rdx, (%rdi)
+  inc %rcx
+  jmp parse_text_copy
+parse_text_done:
+  mov %rbx, %rax
+  pop %r13
+  pop %r12
+  pop %rbx
+  ret
+
   .section .bss
   .lcomm buffer, 21
   .lcomm heap_break, 8
+  .lcomm __argv_base, 8
