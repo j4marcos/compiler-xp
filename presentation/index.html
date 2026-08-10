@@ -35,17 +35,24 @@
 
     .deck {
       height: 100%;
+      width: 100%;
+      display: grid;
+      place-items: center;
+      padding: 1.25rem 1.5rem 4.25rem;
       position: relative;
+      overflow: hidden;
     }
 
     section {
       display: none;
       flex-direction: column;
       justify-content: center;
-      min-height: 100%;
-      padding: 4.5rem 6vw 5rem;
-      max-width: 1100px;
-      margin: 0 auto;
+      width: 1080px;
+      max-width: none;
+      padding: 2.5rem 3rem;
+      margin: 0;
+      transform-origin: center center;
+      will-change: transform;
     }
 
     section.active {
@@ -59,7 +66,7 @@
 
     h1 {
       font-family: "IBM Plex Serif", "Source Serif 4", Georgia, serif;
-      font-size: clamp(2.4rem, 5vw, 3.6rem);
+      font-size: 3.4rem;
       font-weight: 600;
       letter-spacing: -0.02em;
       line-height: 1.15;
@@ -73,14 +80,14 @@
 
     h2 {
       font-family: "IBM Plex Serif", Georgia, serif;
-      font-size: clamp(1.6rem, 3.2vw, 2.2rem);
+      font-size: 2.35rem;
       font-weight: 600;
       margin-bottom: 1.1rem;
       line-height: 1.25;
     }
 
     h3 {
-      font-size: 0.85rem;
+      font-size: 0.9rem;
       text-transform: uppercase;
       letter-spacing: 0.08em;
       color: var(--accent);
@@ -89,7 +96,7 @@
     }
 
     .eyebrow {
-      font-size: 0.8rem;
+      font-size: 0.85rem;
       text-transform: uppercase;
       letter-spacing: 0.12em;
       color: var(--accent);
@@ -99,21 +106,21 @@
 
     .subtitle {
       color: var(--muted);
-      font-size: 1.15rem;
+      font-size: 1.25rem;
       margin-bottom: 1.5rem;
     }
 
     .lead {
-      font-size: 1.15rem;
+      font-size: 1.25rem;
       line-height: 1.55;
       margin-bottom: 1rem;
-      max-width: 42rem;
+      max-width: none;
     }
 
     p {
       line-height: 1.55;
       margin-bottom: 0.85rem;
-      max-width: 46rem;
+      max-width: none;
     }
 
     .author {
@@ -184,7 +191,7 @@
     }
 
     .impl {
-      font-size: 1.02rem;
+      font-size: 1.15rem;
       line-height: 1.6;
       max-width: none;
     }
@@ -208,10 +215,10 @@
     pre.code {
       background: var(--code-bg);
       color: var(--code-fg);
-      padding: 1rem 1.15rem;
+      padding: 1.1rem 1.25rem;
       border-radius: 8px;
       overflow-x: auto;
-      font-size: 0.92rem;
+      font-size: 1.05rem;
       line-height: 1.5;
       border: 1px solid #2a3344;
     }
@@ -280,7 +287,8 @@
       }
 
       section {
-        padding: 3rem 5vw 4.5rem;
+        width: 640px;
+        padding: 1.75rem 1.5rem;
       }
     }
   </style>
@@ -826,13 +834,32 @@ output/target_code</code></pre>
     let i = 0;
     const counter = document.getElementById("counter");
     const prog = document.getElementById("prog");
+    const deck = document.getElementById("deck");
+
+    function fitSlide() {
+      const s = slides[i];
+      if (!s) return;
+      s.style.transform = "none";
+      const cs = getComputedStyle(deck);
+      const availW = deck.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+      const availH = deck.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+      const w = s.offsetWidth;
+      const h = s.offsetHeight;
+      if (!w || !h || !availW || !availH) return;
+      const scale = Math.min(availW / w, availH / h);
+      s.style.transform = "scale(" + scale + ")";
+    }
 
     function show(n) {
       i = Math.max(0, Math.min(slides.length - 1, n));
-      slides.forEach((s, k) => s.classList.toggle("active", k === i));
+      slides.forEach((s, k) => {
+        s.classList.toggle("active", k === i);
+        if (k !== i) s.style.transform = "none";
+      });
       counter.textContent = (i + 1) + " / " + slides.length;
       prog.style.width = ((i + 1) / slides.length * 100) + "%";
       history.replaceState(null, "", "#" + (i + 1));
+      requestAnimationFrame(fitSlide);
     }
 
     document.getElementById("prev").onclick = () => show(i - 1);
@@ -846,6 +873,11 @@ output/target_code</code></pre>
       } else if (e.key === "Home") { show(0); }
       else if (e.key === "End") { show(slides.length - 1); }
     });
+
+    window.addEventListener("resize", fitSlide);
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(fitSlide);
+    }
 
     const fromHash = parseInt(location.hash.slice(1), 10);
     show(Number.isFinite(fromHash) && fromHash > 0 ? fromHash - 1 : 0);
