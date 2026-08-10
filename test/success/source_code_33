@@ -1,4 +1,4 @@
-// argv: ./prog 3 string 4  →  3 + 's'(115) + 4 = 122
-func main(num a, text s, num b) num {
-  return a + s[0] + b;
+// argv: ./prog 3 4  →  3 + 4 = 7
+func main(num a, num b) num {
+  return a + b;
 }
