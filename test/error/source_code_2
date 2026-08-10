@@ -1,4 +1,4 @@
 // Erro léxico (caractere inválido)
-func main() {
+func main() num {
   return 1 @ 2;
 }

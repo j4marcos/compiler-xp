@@ -1,4 +1,4 @@
 // Precedência * / % vs + - — esperado: 91
-func main() {
+func main() num {
   return (7 + 5) + 3 / 3 / 2 + (10 * 8 - 2) + 10 % 3;
 }

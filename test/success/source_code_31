@@ -1,0 +1,4 @@
+func main() num {
+  text t = "hello";
+  return t[0];
+}

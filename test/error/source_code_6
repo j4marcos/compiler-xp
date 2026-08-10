@@ -1,7 +1,7 @@
 // Erro semântico (uso antes da declaração)
-var x = 7 + y;
-var y = x * 11;
+num x = 7 + y;
+num y = x * 11;
 
-func main() {
+func main() num {
   return x * y;
 }

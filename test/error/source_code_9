@@ -1,8 +1,8 @@
 // Erro semântico (função não declarada)
-func add(a, b) {
+func add(num a, num b) num {
   return a + b;
 }
 
-func main() {
+func main() num {
   return foo(1);
 }

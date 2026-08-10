@@ -1,7 +1,7 @@
 // if / else — esperado: 4
-var x = 3;
+num x = 3;
 
-func main() {
+func main() num {
   if x < 10 {
     x = x + 1;
   } else {

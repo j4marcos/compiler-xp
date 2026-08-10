@@ -1,10 +1,10 @@
 // Locais na pilha — esperado: 131714583
-func f(x) {
-  var y = x * x + 7;
-  var z = y * x - 9;
+func f(num x) num {
+  num y = x * x + 7;
+  num z = y * x - 9;
   return y * z;
 }
 
-func main() {
+func main() num {
   return f(42);
 }

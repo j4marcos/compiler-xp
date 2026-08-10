@@ -11,7 +11,7 @@ Compilador lê um programa da linguagem **Func** a partir de um arquivo de entra
 
 1. **Análise léxica** (`src/lexical.rs`) — classifica tokens (números, operadores, identificadores, palavras-chave, blocos, etc.).
 2. **Análise sintática** (`src/syntax.rs`) — monta a AST de expressões, declarações e funções.
-3. **Análise semântica** (`src/semantic.rs`) — valida declarações, escopos e existência de `main` com `return` final.
+3. **Análise semântica** (`src/semantic.rs`) — valida tipos, declarações, escopos e existência de `main` com `return` final.
 4. **Geração de código** (`src/generation.rs`) — emite assembly; `_start` inicializa globais, chama `main`, imprime o valor em `%rax` via runtime e encerra.
 
 O assembly é impresso no terminal e salvo em `output/target_code.s`.
@@ -19,49 +19,59 @@ O assembly é impresso no terminal e salvo em `output/target_code.s`.
 
 ### Linguagem Func
 
-Variação da Cmd com `func`/`var`, expressões booleanas (`and`, `or`, `not`), operadores `<=`, `>=`, `%`, `+=`, `-=`, `*=`, `/=`, `++`, `print`, comentários de linha (`//` ignora o resto da linha), e funções com parâmetros e variáveis locais. O programa deve ter `func main()` e o último comando de `main` deve ser um `return`.
+Tipos: `num`, `list`, `bool`, `text`. Declarações tipadas, parâmetros tipados, métodos (`x.f(args)` → `f(x, args)`), arrays dinâmicos com handle, `print`, comentários `//`. O programa deve ter `func main()` e o último comando de `main` deve retornar `num`/`bool`.
 
 ```
 <programa> ::= <decl>*
 <decl>       ::= <vardecl> | <fundecl>
-<vardecl>    ::= 'var' <ident> '=' <exp> ';'
-<fundecl>    ::= 'func' <ident> '(' <arglist>? ')' '{' <cmd>* '}'
-<arglist>    ::= <ident> | <ident> ',' <arglist>
-<cmd>        ::= <if> | <while> | <atrib> | <return> | <print> | <funcall> | <vardecl>
+<vardecl>    ::= <tipo> <ident> '=' <exp> ';'
+<tipo>       ::= 'num' | 'list' | 'bool' | 'text'
+<fundecl>    ::= 'func' <ident> '(' <arglist>? ')' <tipo> '{' <cmd>* '}'
+<arglist>    ::= <arg> | <arg> ',' <arglist>
+<arg>        ::= <tipo> <ident>
+<cmd>        ::= <if> | <while> | <atrib> | <return> | <print> | <callstmt> | <vardecl>
 <print>      ::= 'print' <exp> ';'
+<callstmt>   ::= <exp> ';'?          # chamada/método
 <if>         ::= 'if' <exp> '{' <cmd>* '}' 'else' '{' <cmd>* '}'
 <while>      ::= 'while' <exp> '{' <cmd>* '}'
 <atrib>      ::= <ident> '=' <exp> ';'
-             | <ident> '+=' <exp> ';'
-             | <ident> '-=' <exp> ';'
-             | <ident> '*=' <exp> ';'
-             | <ident> '/=' <exp> ';'
-             | <ident> '++' ';'
+             | <ident> '[' <exp> ']' '=' <exp> ';'
+             | <ident> '+=' <exp> ';' | ... | <ident> '++' ';'
 <return>     ::= 'return' <exp> ';'
-<funcall>    ::= <ident> '(' <params>? ')'
-<params>     ::= <exp> | <exp> ',' <params>
 
-<exp>      ::= <exp_or>
-<exp_or>   ::= <exp_and> (('or') <exp_and>)*
-<exp_and>  ::= <exp_cmp> (('and') <exp_cmp>)*
-<exp_cmp>  ::= <exp_a> (('<' | '>' | '==' | '<=' | '>=') <exp_a>)*
-<exp_a>    ::= <exp_m> (('+' | '-') <exp_m>)*
-<exp_m>    ::= <exp_u> (('*' | '/' | '%') <exp_u>)*
-<exp_u>    ::= ('not') <exp_u> | <prim>
-<prim>     ::= <num> | <ident> | '(' <exp> ')' | <funcall>
+<exp>      ::= <exp_or> ('.' <ident> '(' <params>? ')')*
+...
+<prim>     ::= <num> | <ident> | <ident> '[' <exp> ']' | '(' <exp> ')' | <funcall>
+             | '[' <params>? ']' | <exp> '.' 'len' | <exp> '.' 'len' '(' ')'
+             | 'true' | 'false' | <string>
 ```
 
-Precedência (maior → menor): `not` → `*` `/` `%` → `+` `-` → relacionais → `and` → `or`.
+**Tipos**
+- `num` — inteiro 64-bit
+- `bool` — mesmo valor numérico; em `if`/`while`, `0` é falso e qualquer outro é verdadeiro
+- `list` — array dinâmico (handle → `[len][cap][data]`); cria com `[]` ou `[1, 2, 3]`
+- `text` — mesmo layout de `list`; literais `"abc"` viram códigos ASCII
+
+**Métodos:** `recv.nome(args)` vira `nome(recv, args)`. Encadeável. O builtin `push(list|text, num)` devolve o handle. Comprimento via **`a.len`** ou `a.len()` (não existe mais a forma `len(a)` como keyword).
 
 Exemplo:
 
 ```
-func add(a, b) {
-  return a + b;
+func abs(num x) num {
+  if x < 0 {
+    return 0 - x;
+  } else {
+    return x;
+  }
 }
 
-func main() {
-  return add(2, 3);
+func main() num {
+  num x = -3;
+  list a = [1, 2];
+  a.push(3);
+  text t = "hi";
+  bool ok = true;
+  return x.abs() + a.len + t[0];
 }
 ```
 
@@ -71,27 +81,32 @@ Estrutura
 
 ### Token
 
-Keywords: `if`, `else`, `while`, `return`, `print`, `and`, `or`, `not`, `func`, `var`, `main`.
+Keywords: `if`, `else`, `while`, `return`, `print`, `and`, `or`, `not`, `func`, `main`, `num`, `list`, `bool`, `text`, `true`, `false`.
 
 ### Expression / Command
 
 ```rust
+enum Type { Num, List, Bool, Text }
+
 enum Expression {
     NumberLiteral(i32),
     Identifier(String),
     UnaryOperation { operator, operand },
     BinOperation { left_value, operator, right_value },
-    FunctionCall { name, parameters },
+    FunctionCall { name, parameters }, // inclui métodos desaçucarados
+    Index { array, index },
+    ArrayLiteral(Vec<Expression>),
+    TextLiteral(String),
 }
 
 enum Command {
     If { condition, true_block, false_block },
     While { condition, block },
-    Attribution { variable, expression },
+    Attribution { target, expression },
     FunctionCall { name, parameters },
     Return { expression },
     Print { expression },
-    Declaration { identifier }, // var ou func (func aninhada não é gerada)
+    Declaration { identifier },
 }
 ```
 
@@ -101,26 +116,19 @@ Geração
 
 Expressões deixam o resultado em `%rax`.
 
-1. literal / variável → `mov` para `%rax` (global por nome; local/param por offset de `%rbp`)
-2. binária → esquerda, `push %rax`, direita, `pop %rbx`, operação
-3. `if` / `while` → `cmp` + saltos com labels
-4. **chamada de função** → empilha args na ordem inversa, `call`, limpa a pilha (`add $N, %rsp`); retorno em `%rax`
-5. **corpo de função** → `push %rbp`, `sub $L*8, %rsp`, `mov %rsp, %rbp`; locais em `0(%rbp)…`; params em `(L+2)*8(%rbp)…`; no `return`: libera frame, `pop %rbp`, `ret`
-6. `_start` → inicializa globais (`.bss`), `call main`, `call imprime_num`, `call sair` (`templates/runtime.s`)
+1. literal / variável → `mov` para `%rax`
+2. binária / unária (`not`, `-`)
+3. `if` / `while` → `cmp` + saltos
+4. chamada → empilha args (exceto builtins `push` / `len` via `.len`)
+5. arrays → handle + `array_new` / `array_push` no runtime (`brk`)
+6. `_start` → globais, `call main`, `imprime_num`, `sair`
 
 
 Como executar
 -------------
 
-Requisito: [Rust](https://www.rust-lang.org/) instalado.
-
 ```sh
 cargo run <CAMINHO_DO_ARQUIVO>
-```
-
-Montar e executar o assembly gerado:
-
-```sh
 as -o output/target_code.o output/target_code.s -Itemplates && ld -o output/target_code output/target_code.o && output/target_code
 ```
 
@@ -129,7 +137,7 @@ Testes de sucesso
 -----------------
 
 ```sh
-for i in $(seq 1 23); do
+for i in $(seq 1 30); do
   cargo run test/success/source_code_$i
   as -o output/target_code.o output/target_code.s -Itemplates
   ld -o output/target_code output/target_code.o
@@ -137,7 +145,12 @@ for i in $(seq 1 23); do
 done
 ```
 
-
+| Arquivo | Cobre | Resultado |
+|---------|--------|-----------|
+| `24`–`27` | list / len / push / alias / param | `3`, `14`, `2`, `5` |
+| `28` | método `x.abs()` | `3` |
+| `29` | chain `mult.push.sum` | `14` |
+| `30` | bool / text / `[]` | `246` |
 
 
 Testes de erro

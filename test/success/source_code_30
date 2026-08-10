@@ -1,0 +1,8 @@
+func main() num {
+  bool y = true;
+  bool z = 42;
+  text t = "ab";
+  list empty = [];
+  empty.push(7);
+  return y + z + t[0] + t[1] + empty[0] + empty.len;
+}

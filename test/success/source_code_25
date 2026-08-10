@@ -1,0 +1,8 @@
+func main() num {
+  list a = [];
+  a.push(1);
+  a.push(2);
+  a.push(3);
+  a.push(4);
+  return a[0] + a[1] + a[2] + a[3] + a.len;
+}

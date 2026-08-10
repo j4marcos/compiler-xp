@@ -1,7 +1,7 @@
 // Erro sintático (if sem else)
-var x = 1;
+num x = 1;
 
-func main() {
+func main() num {
   if x == 1 {
     return 1;
   }

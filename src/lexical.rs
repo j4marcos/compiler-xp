@@ -47,6 +47,8 @@ pub enum TokenClass {
 
     LeftParentheses,
     RightParentheses,
+    LeftBracket,
+    RightBracket,
 
     OpenBlock,
     CloseBlock,
@@ -70,11 +72,13 @@ pub enum TokenClass {
 
     Space,
     NewLine,
+    Dot,
+    StringLiteral,
 
     KeyWord,
 }
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub enum KeyWord {
     If,
     While,
@@ -83,7 +87,12 @@ pub enum KeyWord {
     Print,
     Main,
     Func,
-    Var
+    Num,
+    List,
+    Bool,
+    Text,
+    True,
+    False,
 }
 
 impl KeyWord {
@@ -96,7 +105,12 @@ impl KeyWord {
             "print" => Some(KeyWord::Print),
             "main" => Some(KeyWord::Main),
             "func" => Some(KeyWord::Func),
-            "var" => Some(KeyWord::Var ),
+            "num" => Some(KeyWord::Num),
+            "list" => Some(KeyWord::List),
+            "bool" => Some(KeyWord::Bool),
+            "text" => Some(KeyWord::Text),
+            "true" => Some(KeyWord::True),
+            "false" => Some(KeyWord::False),
             _ => None,
         }
     }
@@ -282,6 +296,14 @@ fn read_token(chars: &[char], read_index: usize, column: usize, line: usize) -> 
             ),
             read_index + 1,
         ),
+        '[' => (
+            Token::new(TokenClass::LeftBracket, String::from("["), column, line),
+            read_index + 1,
+        ),
+        ']' => (
+            Token::new(TokenClass::RightBracket, String::from("]"), column, line),
+            read_index + 1,
+        ),
         '+' => {
             if read_index + 1 < chars.len() && chars[read_index + 1] == '=' {
                 (
@@ -354,6 +376,27 @@ fn read_token(chars: &[char], read_index: usize, column: usize, line: usize) -> 
             Token::new(TokenClass::Comma, String::from(','), column, line),
             read_index + 1,
         ),
+        '.' => (
+            Token::new(TokenClass::Dot, String::from("."), column, line),
+            read_index + 1,
+        ),
+        '"' => {
+            let mut end = read_index + 1;
+            while end < chars.len() && chars[end] != '"' {
+                if chars[end] == '\n' || chars[end] == '\r' {
+                    handle_invalid_token(chars[end], column, line);
+                }
+                end += 1;
+            }
+            if end >= chars.len() {
+                handle_invalid_token('"', column, line);
+            }
+            let lexema: String = chars[read_index + 1..end].iter().collect();
+            (
+                Token::new(TokenClass::StringLiteral, lexema, column, line),
+                end + 1,
+            )
+        },
         ' ' | '\t' => {
             let end = read_spaces(chars, read_index);
             let lexema: String = chars[read_index..end].iter().collect();

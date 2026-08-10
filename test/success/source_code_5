@@ -1,7 +1,7 @@
-// Variáveis globais (var) — esperado: 60467
-var x = (7 + 4) * 12;
-var y = x * 3 + 11;
+// Variáveis globais (num) — esperado: 60467
+num x = (7 + 4) * 12;
+num y = x * 3 + 11;
 
-func main() {
+func main() num {
   return (x * y) + (x * 11) + (y * 13);
 }

@@ -1,7 +1,7 @@
 // Erro semântico (variável redeclarada)
-var x = 1;
-var x = 2;
+num x = 1;
+num x = 2;
 
-func main() {
+func main() num {
   return x;
 }

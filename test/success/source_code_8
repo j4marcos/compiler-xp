@@ -1,4 +1,4 @@
 // and / or / not — esperado: 1
-func main() {
+func main() num {
   return (1 and 0) or (not 0 and 1);
 }

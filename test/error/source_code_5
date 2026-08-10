@@ -1,6 +1,6 @@
 // Erro semântico (variável não declarada)
-var x = 7 + 4;
+num x = 7 + 4;
 
-func main() {
+func main() num {
   return x * y + z;
 }

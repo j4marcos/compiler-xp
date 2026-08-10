@@ -28,19 +28,72 @@ impl Code {
 }
 
 fn generate_function_call(name: &String, parameters: &Vec<Expression>, code: &mut Code) {
-    for expression in parameters.iter().rev() {
-        evaluate_expression(expression, code);
-        code.push_str("push %rax\n");
+    match name.as_str() {
+        "push" => {
+            if parameters.len() != 2 {
+                panic!("push expects 2 arguments");
+            }
+            evaluate_expression(&parameters[1], code);
+            code.push_str("push %rax\n");
+            evaluate_expression(&parameters[0], code);
+            code.push_str("mov %rax, %rdi\n");
+            code.push_str("pop %rsi\n");
+            code.push_str("call array_push\n");
+        }
+        "len" => {
+            if parameters.len() != 1 {
+                panic!("len expects 1 argument");
+            }
+            evaluate_expression(&parameters[0], code);
+            code.push_str("mov (%rax), %rax\n");
+            code.push_str("mov (%rax), %rax\n");
+        }
+        "pop" => {
+            if parameters.len() != 1 {
+                panic!("pop expects 1 argument");
+            }
+            evaluate_expression(&parameters[0], code);
+            code.push_str("mov %rax, %rdi\n");
+            code.push_str("call array_pop\n");
+        }
+        _ => {
+            for expression in parameters.iter().rev() {
+                evaluate_expression(expression, code);
+                code.push_str("push %rax\n");
+            }
+            code.push_str(&format!("call {}\n", name));
+            code.push_str(&format!("add ${}, %rsp\n", 8 * parameters.len()));
+        }
     }
-    code.push_str(&format!("call {}\n", name));
-    code.push_str(&format!("add ${}, %rsp\n", 8 * parameters.len()));
 }
 
-/// Evaluates an expression leaving the result in %rax.
+fn load_handle_to_rax(array: &String, code: &mut Code) {
+    let location = find_variable_stack_index(array, &code.local, &code.global);
+    code.push_str(&format!("mov {}, %rax\n", location));
+}
+
+fn load_data_ptr_from_handle_in_rax(code: &mut Code) {
+    code.push_str("mov (%rax), %rax\n");
+}
+
 fn evaluate_expression(expression: &Expression, code: &mut Code) {
     match expression {
         Expression::NumberLiteral(number) => {
             code.push_str(&format!("mov ${}, %rax\n", number));
+        }
+        Expression::TextLiteral(text) => {
+            let chars: Vec<i32> = text.chars().map(|c| c as i32).collect();
+            let n = chars.len();
+            code.push_str(&format!("mov ${}, %rdi\n", n));
+            code.push_str("call array_new\n");
+            code.push_str("push %rax\n");
+            for (i, ch) in chars.iter().enumerate() {
+                code.push_str(&format!("mov ${}, %rdx\n", ch));
+                code.push_str("mov (%rsp), %rax\n");
+                code.push_str("mov (%rax), %rax\n");
+                code.push_str(&format!("mov %rdx, {}(%rax)\n", 16 + i * 8));
+            }
+            code.push_str("pop %rax\n");
         }
         Expression::Identifier(name) => {
             let rbp_position = find_variable_stack_index(name, &code.local, &code.global);
@@ -54,6 +107,9 @@ fn evaluate_expression(expression: &Expression, code: &mut Code) {
                     code.push_str("sete %al\n");
                     code.push_str("movzbq %al, %rax\n");
                 }
+                Operator::Sub => {
+                    code.push_str("neg %rax\n");
+                }
                 _ => unreachable!("invalid unary operator"),
             }
         }
@@ -65,14 +121,12 @@ fn evaluate_expression(expression: &Expression, code: &mut Code) {
             evaluate_expression(left_value, code);
             code.push_str("push %rax\n");
             evaluate_expression(right_value, code);
-            // left in %rbx, right in %rax
             code.push_str("pop %rbx\n");
             match operator {
                 Operator::Sum => {
                     code.push_str("add %rbx, %rax\n");
                 }
                 Operator::Sub => {
-                    // rax = left - right
                     code.push_str("sub %rax, %rbx\n");
                     code.push_str("mov %rbx, %rax\n");
                 }
@@ -80,7 +134,6 @@ fn evaluate_expression(expression: &Expression, code: &mut Code) {
                     code.push_str("imul %rbx, %rax\n");
                 }
                 Operator::Div | Operator::Mod => {
-                    // rax = left / right ; remainder in %rdx
                     code.push_str("mov %rax, %rcx\n");
                     code.push_str("mov %rbx, %rax\n");
                     code.push_str("cqo\n");
@@ -107,13 +160,10 @@ fn evaluate_expression(expression: &Expression, code: &mut Code) {
                     }
                     code.push_str("mov %rcx, %rax\n");
                 }
-                // any true - 0 false
                 Operator::And | Operator::Or => {
-                    // rbx to boolean
                     code.push_str("test %rbx, %rbx\n");
                     code.push_str("setnz %bl\n");
                     code.push_str("movzbq %bl, %rbx\n");
-                    // rax to boolean
                     code.push_str("test %rax, %rax\n");
                     code.push_str("setnz %al\n");
                     code.push_str("movzbq %al, %rax\n");
@@ -130,7 +180,37 @@ fn evaluate_expression(expression: &Expression, code: &mut Code) {
         Expression::FunctionCall { name, parameters } => {
             generate_function_call(name, parameters, code)
         }
+        Expression::Index { array, index } => {
+            evaluate_expression(index, code);
+            code.push_str("push %rax\n");
+            load_handle_to_rax(array, code);
+            load_data_ptr_from_handle_in_rax(code);
+            code.push_str("pop %rcx\n");
+            code.push_str("imul $8, %rcx\n");
+            code.push_str("add $16, %rcx\n");
+            code.push_str("add %rcx, %rax\n");
+            code.push_str("mov (%rax), %rax\n");
+        }
+        Expression::ArrayLiteral(elements) => {
+            let n = elements.len();
+            code.push_str(&format!("mov ${}, %rdi\n", n));
+            code.push_str("call array_new\n");
+            code.push_str("push %rax\n");
+            for (i, element) in elements.iter().enumerate() {
+                evaluate_expression(element, code);
+                code.push_str("mov %rax, %rdx\n");
+                code.push_str("mov (%rsp), %rax\n");
+                code.push_str("mov (%rax), %rax\n");
+                code.push_str(&format!("mov %rdx, {}(%rax)\n", 16 + i * 8));
+            }
+            code.push_str("pop %rax\n");
+        }
     }
+}
+
+fn store_rax_to_variable(name: &String, code: &mut Code) {
+    let destination = find_variable_stack_index(name, &code.local, &code.global);
+    code.push_str(&format!("mov %rax, {}\n", destination));
 }
 
 fn evaluate_command(command: &Command, code: &mut Code) {
@@ -160,24 +240,33 @@ fn evaluate_command(command: &Command, code: &mut Code) {
             code.push_str(&format!("jmp Linicio{}\n", label));
             code.push_str(&format!("Lfim{}:\n", label));
         }
-        Command::Attribution {
-            variable,
-            expression,
-        } => {
-            evaluate_expression(expression, code);
-            let destination =
-                find_variable_stack_index(variable.get_lexema(), &code.local, &code.global);
-            code.push_str(&format!("mov %rax, {}\n", destination));
-        }
+        Command::Attribution { target, expression } => match target {
+            AssignTarget::Variable(variable) => {
+                evaluate_expression(expression, code);
+                store_rax_to_variable(variable.get_lexema(), code);
+            }
+            AssignTarget::Index { array, index } => {
+                evaluate_expression(expression, code);
+                code.push_str("push %rax\n");
+                evaluate_expression(index, code);
+                code.push_str("push %rax\n");
+                let variable_name = array.get_lexema();
+                load_handle_to_rax(variable_name, code);
+                load_data_ptr_from_handle_in_rax(code);
+                code.push_str("pop %rcx\n");
+                code.push_str("imul $8, %rcx\n");
+                code.push_str("add $16, %rcx\n");
+                code.push_str("add %rcx, %rax\n");
+                code.push_str("pop %rdx\n");
+                code.push_str("mov %rdx, (%rax)\n");
+            }
+        },
         Command::Return { expression } => {
             evaluate_expression(expression, code);
-
-            // clear_local_stack
             code.push_str(&format!(
                 "add ${}, %rsp\n",
                 8 * count_local_variables(&code.local)
             ));
-
             code.push_str("pop %rbp\n");
             code.push_str("ret\n");
         }
@@ -189,11 +278,9 @@ fn evaluate_command(command: &Command, code: &mut Code) {
             generate_function_call(name, parameters, code);
         }
         Command::Declaration { identifier } => match identifier {
-            Identifier::Variable(Variable { name, expression }) => {
+            Identifier::Variable(Variable { name, expression, .. }) => {
                 evaluate_expression(expression, code);
-                let rbp_position =
-                    find_variable_stack_index(name.get_lexema(), &code.local, &code.global);
-                code.push_str(&format!("mov %rax, {}\n", rbp_position));
+                store_rax_to_variable(name.get_lexema(), code);
             }
             Identifier::Function(_) => {
                 panic!("function cant be declared inside another function");
@@ -219,9 +306,8 @@ fn generate_global_variables(program: &Program) -> String {
     text
 }
 
-// é feito varias vezes na recurção o calculo, seria bom salvar o valor na struct Function
 fn count_local_variables(function: &Function) -> usize {
-    return function
+    function
         .code_block
         .commands
         .iter()
@@ -233,14 +319,10 @@ fn count_local_variables(function: &Function) -> usize {
                 }
             )
         })
-        .count();
+        .count()
 }
 
-// ŕ feito varias vezes na recursão o calculo, seria bom salvar o valor dentro da struct da Variable;
 fn find_variable_stack_index(name: &String, function: &Function, global: &Vec<String>) -> String {
-    // procurar em qual lista de declarações esta a variavel
-
-    // local
     if let Some(index) = function
         .code_block
         .commands
@@ -256,56 +338,49 @@ fn find_variable_stack_index(name: &String, function: &Function, global: &Vec<St
         return format!("{}(%rbp)", 8 * index);
     }
 
-    // params
     if let Some(mut index) = function
         .parameters
         .iter()
-        .position(|p| p.get_lexema() == name)
+        .position(|p| p.name.get_lexema() == name)
     {
         index = 8 * count_local_variables(function) + 8 * 2 + 8 * index;
-
         return format!("{}(%rbp)", index);
     }
 
-    // global
-    if global.iter().find(|g| g == &name).is_some() {
+    if global.iter().any(|g| g == name) {
         return name.to_string();
     }
 
     panic!("cannot use a variable without declare it first")
-
-    // para usar uma variavel -> pega o valor da expressão e coloca em rax, de rax identifica qual é a posição na pilha dessa variavel:
-    // variavel parametro da função : posição em RBP + numero de variaveis locais * 8 + 16 (metadata) + 8 * index da parametro
-    // variavel local declarada : posição em RBP + ordem de declaração da variavel no local * 8
 }
 
 fn generate_functions(program: &Program) -> String {
     let mut text: String = String::new();
     let mut global_variables_names: Vec<String> = Vec::new();
     for identifier in &program.declarations {
-        match identifier {
-            Identifier::Variable(variable) => {
-                let name = variable.name.get_lexema().to_string();
-                global_variables_names.push(name);
-            }
-            Identifier::Function(function) => {
-                let mut code = Code {
-                    local: function.clone(),
-                    global: global_variables_names.clone(),
-                    text: String::new(),
-                };
+        if let Identifier::Variable(variable) = identifier {
+            let name = variable.name.get_lexema().to_string();
+            global_variables_names.push(name);
+        }
+    }
+    for identifier in &program.declarations {
+        if let Identifier::Function(function) = identifier {
+            let mut code = Code {
+                local: function.clone(),
+                global: global_variables_names.clone(),
+                text: String::new(),
+            };
 
-                let name = code.local.name.get_lexema();
-                text.push_str(&format!("{}:\n", name));
-                text.push_str("push %rbp\n");
-                text.push_str(&format!(
-                    "sub ${}, %rsp\n",
-                    8 * count_local_variables(function)
-                ));
-                text.push_str("mov %rsp, %rbp\n");
-                generate_commands(&function.code_block.commands, &mut code);
-                text.push_str(&code.text);
-            }
+            let name = code.local.name.get_lexema();
+            text.push_str(&format!("{}:\n", name));
+            text.push_str("push %rbp\n");
+            text.push_str(&format!(
+                "sub ${}, %rsp\n",
+                8 * count_local_variables(function)
+            ));
+            text.push_str("mov %rsp, %rbp\n");
+            generate_commands(&function.code_block.commands, &mut code);
+            text.push_str(&code.text);
         }
     }
     text
@@ -320,7 +395,6 @@ fn generate_global_variables_inicialization(Program { declarations }: &Program, 
         })
         .collect();
 
-    // inicializa variáveis globais
     let global_scope = Function {
         name: Token {
             class: crate::lexical::TokenClass::KeyWord,
@@ -329,6 +403,7 @@ fn generate_global_variables_inicialization(Program { declarations }: &Program, 
             lexema: String::from(""),
         },
         parameters: vec![],
+        return_type: Type::Num,
         code_block: CodeBlock { commands: vec![] },
     };
     for identifier in declarations {
@@ -339,7 +414,7 @@ fn generate_global_variables_inicialization(Program { declarations }: &Program, 
                 text: String::new(),
             };
             evaluate_expression(&variable.expression, &mut code);
-            code.push_str(&format!("mov %rax, {}\n", variable.name.get_lexema()));
+            store_rax_to_variable(variable.name.get_lexema(), &mut code);
             text.push_str(&code.text);
         }
     }

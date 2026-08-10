@@ -1,9 +1,9 @@
 // Algoritmo (mdc) — esperado: 6
-var a = 18;
-var b = 12;
-var r = 0;
+num a = 18;
+num b = 12;
+num r = 0;
 
-func main() {
+func main() num {
   r = a;
   while r + 1 > b {
     r = r - b;

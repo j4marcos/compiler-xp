@@ -1,4 +1,4 @@
 // Erro semântico (programa sem main)
-func add(a, b) {
+func add(num a, num b) num {
   return a + b;
 }

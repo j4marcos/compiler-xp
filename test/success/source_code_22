@@ -1,12 +1,12 @@
 // Função chamando outra — esperado: 25
-func square(x) {
+func square(num x) num {
   return x * x;
 }
 
-func hypot2(a, b) {
+func hypot2(num a, num b) num {
   return square(a) + square(b);
 }
 
-func main() {
+func main() num {
   return hypot2(3, 4);
 }
