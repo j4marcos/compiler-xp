@@ -1,0 +1,11 @@
+// lib/print.lib — esperado: 7
+// printNum(3)=3, printList([1,2])=2, printText("A")=1 → 3+2+1+1(bool)=7
+import io from "../../lib/print.lib"
+
+func main() num {
+  num n = io::printNum(3);
+  num len = [1, 2].io::printList();
+  num chars = "A".io::printText();
+  io::printBool(true);
+  return n + len + chars + 1;
+}

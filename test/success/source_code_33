@@ -1,0 +1,4 @@
+// argv: ./prog 3 4  →  3 + 4 = 7
+func main(num a, num b) num {
+  return a + b;
+}

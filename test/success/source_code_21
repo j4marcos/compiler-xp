@@ -1,4 +1,5 @@
-func abs(x) {
+// if em função + locals — esperado: 10
+func abs(num x) num {
   if x < 0 {
     return 0 - x;
   } else {
@@ -6,8 +7,8 @@ func abs(x) {
   }
 }
 
-func main() {
-  var a = abs(0 - 7);
-  var b = abs(3);
+func main() num {
+  num a = abs(0 - 7);
+  num b = abs(3);
   return a + b;
 }

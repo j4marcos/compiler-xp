@@ -1,6 +1,7 @@
-var x123123 = 7 + 2;
-var abc = x123123 * 11;
+// Variáveis globais (num) — esperado: 891
+num x123123 = 7 + 2;
+num abc = x123123 * 11;
 
-func main() {
+func main() num {
   return x123123 * abc;
 }

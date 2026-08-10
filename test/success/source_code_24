@@ -1,0 +1,4 @@
+func main() num {
+  list a = [10, 20, 30];
+  return a.len;
+}

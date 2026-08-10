@@ -1,3 +1,4 @@
-func main() {
+// Erro sintático (expressão malformada)
+func main() num {
   return 54 + x / 98 (4 + 2);
 }

@@ -1,6 +1,7 @@
-var n = 0;
+// while — esperado: 3
+num n = 0;
 
-func main() {
+func main() num {
   while n < 3 {
     n = n + 1;
   }

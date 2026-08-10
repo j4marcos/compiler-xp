@@ -1,3 +1,4 @@
-func main() {
+// Módulo % — esperado: 2
+func main() num {
   return 17 % 5;
 }

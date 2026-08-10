@@ -1,7 +1,8 @@
-var n = 10;
-var acc = 0;
+// print + if/while — esperado: 35 (e prints intermediários)
+num n = 10;
+num acc = 0;
 
-func main() {
+func main() num {
   while n > 0 {
     print acc;
     if n % 2 == 0 {

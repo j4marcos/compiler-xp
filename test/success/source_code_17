@@ -1,7 +1,8 @@
-func double(x) {
+// Um parâmetro — esperado: 42
+func double(num x) num {
   return x + x;
 }
 
-func main() {
+func main() num {
   return double(21);
 }

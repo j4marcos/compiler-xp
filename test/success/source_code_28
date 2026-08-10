@@ -1,0 +1,12 @@
+func abs(num x) num {
+  if x < 0 {
+    return 0 - x;
+  } else {
+    return x;
+  }
+}
+
+func main() num {
+  num x = -3;
+  return x.abs();
+}

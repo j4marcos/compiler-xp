@@ -1,12 +1,13 @@
-var m = 10;
-var n = 4;
+// Função add + locals na main — esperado: 8
+num m = 10;
+num n = 4;
 
-func add(a, b) {
+func add(num a, num b) num {
   return a + b;
 }
 
-func main() {
-  var acc = 0;
+func main() num {
+  num acc = 0;
   while m + 1 > n {
     m = m - n;
     acc = add(acc, m);

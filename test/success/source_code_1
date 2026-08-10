@@ -1,3 +1,4 @@
-func main() {
+// Aritmética e parênteses — esperado: 25
+func main() num {
   return (3 + (4 + (11 + 7)));
 }

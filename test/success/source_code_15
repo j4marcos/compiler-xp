@@ -1,7 +1,8 @@
-var m = 10;
-var n = 4;
+// Resto por subtrações — esperado: 2
+num m = 10;
+num n = 4;
 
-func main() {
+func main() num {
   while m + 1 > n {
     m = m - n;
   }

@@ -1,3 +1,4 @@
-func main() {
-  var x = 1;
+// Erro semântico (main sem return final)
+func main() num {
+  num x = 1;
 }

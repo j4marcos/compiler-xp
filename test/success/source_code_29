@@ -1,0 +1,24 @@
+func mult(list a, num x) list {
+  num i = 0;
+  while i < a.len {
+    a[i] = a[i] * x;
+    i++;
+  }
+  return a;
+}
+
+func sum(list a) num {
+  num i = 0;
+  num acc = 0;
+  while i < a.len {
+    acc = acc + a[i];
+    i++;
+  }
+  return acc;
+}
+
+func main() num {
+  list a = [1, 2, 3];
+  num x = a.mult(2).push(2).sum();
+  return x;
+}

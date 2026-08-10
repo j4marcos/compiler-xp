@@ -1,3 +1,4 @@
-func main() {
+// Aritmética e parênteses — esperado: 10065
+func main() num {
   return (33 + (912 * 11));
 }

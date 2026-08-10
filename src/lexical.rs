@@ -39,9 +39,16 @@ pub enum TokenClass {
     Number,
     Identifier,
     Attribution,
+    PlusEqual,
+    MinusEqual,
+    MulEqual,
+    DivEqual,
+    Increment,
 
     LeftParentheses,
     RightParentheses,
+    LeftBracket,
+    RightBracket,
 
     OpenBlock,
     CloseBlock,
@@ -65,11 +72,13 @@ pub enum TokenClass {
 
     Space,
     NewLine,
+    Dot,
+    StringLiteral,
 
     KeyWord,
 }
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Clone, Copy)]
 pub enum KeyWord {
     If,
     While,
@@ -78,7 +87,14 @@ pub enum KeyWord {
     Print,
     Main,
     Func,
-    Var
+    Num,
+    List,
+    Bool,
+    Text,
+    True,
+    False,
+    Import,
+    From,
 }
 
 impl KeyWord {
@@ -91,7 +107,14 @@ impl KeyWord {
             "print" => Some(KeyWord::Print),
             "main" => Some(KeyWord::Main),
             "func" => Some(KeyWord::Func),
-            "var" => Some(KeyWord::Var ),
+            "num" => Some(KeyWord::Num),
+            "list" => Some(KeyWord::List),
+            "bool" => Some(KeyWord::Bool),
+            "text" => Some(KeyWord::Text),
+            "true" => Some(KeyWord::True),
+            "false" => Some(KeyWord::False),
+            "import" => Some(KeyWord::Import),
+            "from" => Some(KeyWord::From),
             _ => None,
         }
     }
@@ -141,7 +164,7 @@ fn is_digit(c: char) -> bool {
 }
 
 fn is_letter_or_digit(c: char) -> bool {
-    is_letter(c) || is_digit(c)
+    is_letter(c) || is_digit(c) || matches!(c, ':')
 }
 
 fn read_identifier(chars: &[char], read_index: usize) -> usize {
@@ -179,12 +202,17 @@ fn read_token(chars: &[char], read_index: usize, column: usize, line: usize) -> 
         'a'..='z' | 'A'..='Z' => {
             let end = read_identifier(chars, read_index);
             let lexema: String = chars[read_index..end].iter().collect();
-            let class = match lexema.as_str() {
-                "and" => TokenClass::AndOperator,
-                "not" => TokenClass::NotOperator,
-                "or" => TokenClass::OrOperator,
-                _ if KeyWord::from_lexema(&lexema).is_some() => TokenClass::KeyWord,
-                _ => TokenClass::Identifier,
+            // Keywords/operators only on simple names (no `::`)
+            let class = if lexema.contains("::") {
+                TokenClass::Identifier
+            } else {
+                match lexema.as_str() {
+                    "and" => TokenClass::AndOperator,
+                    "not" => TokenClass::NotOperator,
+                    "or" => TokenClass::OrOperator,
+                    _ if KeyWord::from_lexema(&lexema).is_some() => TokenClass::KeyWord,
+                    _ => TokenClass::Identifier,
+                }
             };
             (Token::new(class, lexema, column, line), end)
         }
@@ -277,22 +305,78 @@ fn read_token(chars: &[char], read_index: usize, column: usize, line: usize) -> 
             ),
             read_index + 1,
         ),
-        '+' => (
-            Token::new(TokenClass::SumOperator, String::from("+"), column, line),
+        '[' => (
+            Token::new(TokenClass::LeftBracket, String::from("["), column, line),
             read_index + 1,
         ),
-        '-' => (
-            Token::new(TokenClass::SubOperator, String::from("-"), column, line),
+        ']' => (
+            Token::new(TokenClass::RightBracket, String::from("]"), column, line),
             read_index + 1,
         ),
-        '/' => (
-            Token::new(TokenClass::DivOperator, String::from("/"), column, line),
-            read_index + 1,
-        ),
-        '*' => (
-            Token::new(TokenClass::MulOperator, String::from("*"), column, line),
-            read_index + 1,
-        ),
+        '+' => {
+            if read_index + 1 < chars.len() && chars[read_index + 1] == '=' {
+                (
+                    Token::new(TokenClass::PlusEqual, String::from("+="), column, line),
+                    read_index + 2,
+                )
+            } else if read_index + 1 < chars.len() && chars[read_index + 1] == '+' {
+                (
+                    Token::new(TokenClass::Increment, String::from("++"), column, line),
+                    read_index + 2,
+                )
+            } else {
+                (
+                    Token::new(TokenClass::SumOperator, String::from("+"), column, line),
+                    read_index + 1,
+                )
+            }
+        }
+        '-' => {
+            if read_index + 1 < chars.len() && chars[read_index + 1] == '=' {
+                (
+                    Token::new(TokenClass::MinusEqual, String::from("-="), column, line),
+                    read_index + 2,
+                )
+            } else {
+                (
+                    Token::new(TokenClass::SubOperator, String::from("-"), column, line),
+                    read_index + 1,
+                )
+            }
+        }
+        '/' => {
+            if read_index + 1 < chars.len() && chars[read_index + 1] == '/' {
+                let mut end = read_index + 2;
+                while end < chars.len() && chars[end] != '\n' && chars[end] != '\r' {
+                    end += 1;
+                }
+                let lexema: String = chars[read_index..end].iter().collect();
+                (Token::new(TokenClass::Space, lexema, column, line), end)
+            } else if read_index + 1 < chars.len() && chars[read_index + 1] == '=' {
+                (
+                    Token::new(TokenClass::DivEqual, String::from("/="), column, line),
+                    read_index + 2,
+                )
+            } else {
+                (
+                    Token::new(TokenClass::DivOperator, String::from("/"), column, line),
+                    read_index + 1,
+                )
+            }
+        }
+        '*' => {
+            if read_index + 1 < chars.len() && chars[read_index + 1] == '=' {
+                (
+                    Token::new(TokenClass::MulEqual, String::from("*="), column, line),
+                    read_index + 2,
+                )
+            } else {
+                (
+                    Token::new(TokenClass::MulOperator, String::from("*"), column, line),
+                    read_index + 1,
+                )
+            }
+        }
         '%' => (
             Token::new(TokenClass::ModOperator, String::from("%"), column, line),
             read_index + 1,
@@ -301,6 +385,27 @@ fn read_token(chars: &[char], read_index: usize, column: usize, line: usize) -> 
             Token::new(TokenClass::Comma, String::from(','), column, line),
             read_index + 1,
         ),
+        '.' => (
+            Token::new(TokenClass::Dot, String::from("."), column, line),
+            read_index + 1,
+        ),
+        '"' => {
+            let mut end = read_index + 1;
+            while end < chars.len() && chars[end] != '"' {
+                if chars[end] == '\n' || chars[end] == '\r' {
+                    handle_invalid_token(chars[end], column, line);
+                }
+                end += 1;
+            }
+            if end >= chars.len() {
+                handle_invalid_token('"', column, line);
+            }
+            let lexema: String = chars[read_index + 1..end].iter().collect();
+            (
+                Token::new(TokenClass::StringLiteral, lexema, column, line),
+                end + 1,
+            )
+        },
         ' ' | '\t' => {
             let end = read_spaces(chars, read_index);
             let lexema: String = chars[read_index..end].iter().collect();

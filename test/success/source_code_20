@@ -1,11 +1,12 @@
-func add(a, b) {
+// Calls aninhadas — esperado: 45
+func add(num a, num b) num {
   return a + b;
 }
 
-func mul(a, b) {
+func mul(num a, num b) num {
   return a * b;
 }
 
-func main() {
+func main() num {
   return mul(add(2, 3), add(4, 5));
 }

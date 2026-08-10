@@ -1,0 +1,3 @@
+func count(list xs) num {
+  return xs.len;
+}

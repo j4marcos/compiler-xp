@@ -1,7 +1,8 @@
-var a = 5;
-var b = 5;
-var c = 10;
+// Comparações == < > <= >= — esperado: 1
+num a = 5;
+num b = 5;
+num c = 10;
 
-func main() {
+func main() num {
   return (a == b) and (a < c) and (c > b) and (a <= b) and (c >= a);
 }

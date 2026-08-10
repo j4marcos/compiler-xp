@@ -1,4 +1,5 @@
-func fat(n) {
+// Recursão (fat) — esperado: 120
+func fat(num n) num {
   if n == 0 {
     return 1;
   } else {
@@ -6,6 +7,6 @@ func fat(n) {
   }
 }
 
-func main() {
+func main() num {
   return fat(5);
 }

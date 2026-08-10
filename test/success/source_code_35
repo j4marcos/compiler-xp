@@ -1,0 +1,11 @@
+// lib/numbers.lib — esperado: 42
+import n from "../../lib/numbers.lib"
+
+func main() num {
+  num a = n::abs(0 - 5);
+  num b = n::max(3, 7);
+  num c = n::min(3, 7);
+  num d = n::pow(2, 3);
+  num e = n::factorial(4);
+  return a + b + c + d + e - 5;
+}

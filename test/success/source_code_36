@@ -1,0 +1,27 @@
+// lib/numbers.lib bool utils — esperado: 12
+import n from "../../lib/numbers.lib"
+
+func main() num {
+  bool e = 4.n::isEven();
+  bool o = 5.n::isOdd();
+  bool x = n::xor(true, false);
+  num c = n::clamp(15, 0, 10);
+  num s = n::sign(0 - 3);
+  num total = 0;
+  if e {
+    total = total + 1;
+  } else {
+    total = total;
+  }
+  if o {
+    total = total + 1;
+  } else {
+    total = total;
+  }
+  if x {
+    total = total + 1;
+  } else {
+    total = total;
+  }
+  return total + c + s;
+}

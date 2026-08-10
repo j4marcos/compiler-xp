@@ -1,0 +1,32 @@
+// lib/lists + text + pushAll/range — esperado: 111
+// "hi" = [104,105], sum=209? too big for simple print... use small:
+// text t = "AB" → 65+66=131
+// Better: range(4) sum=6, pushAll [1]+[2,3] sum=6, text "A"[0]=65 → 6+6+65=77
+// range(5).sum=10, pushAll sum=6, "A"=65 → 81
+// Final: range(5) sum=10 + pushAll([1],[2,3]) sum=6 + "hi"[0]=104 → 120
+// Want 111: range(4)sum=6 + pushAll=6 + "hi" first=104 - 5? 
+// 6 + 6 + 104 - 5 = 111. Or: product of range somehow.
+// Simple: ls::sum on text "Ci" = 67+105=172 too big
+// Use: count("abc")=3 + sum([10,20,30])=60 + range(5).sum=10 + pushAll result last=3 → 
+// pushAll([1],[2,3]) → [1,2,3], sum=6, last=3
+// 3+60+10+3+35? Let's just compute cleanly:
+// count("xy")=2, sum([5,5,5])=15, range(10).sum=45, last after pushAll=9 → 2+15+45+9=71
+// Go with: 
+// sum(text "AB") = 65+66 = 131 — maybe return sum("A") which is just one char via list ops
+// text t = "A"; return t.ls::sum() → 65. Add lists bits for 111-65=46
+// range(10).sum=45 + contains → +1 = 46. Perfect: 65+45+1=111
+import ls from "../../lib/lists.lib"
+
+func main() num {
+  text t = "A";
+  num ascii = t.ls::sum();
+  num rg = ls::range(10).ls::sum();
+  bool has = ls::range(5).ls::contains(3);
+  num extra = 0;
+  if has {
+    extra = 1;
+  } else {
+    extra = 0;
+  }
+  return ascii + rg + extra;
+}

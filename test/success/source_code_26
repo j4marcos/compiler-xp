@@ -1,0 +1,6 @@
+func main() num {
+  list a = [1];
+  list b = a;
+  a.push(2);
+  return b[1];
+}

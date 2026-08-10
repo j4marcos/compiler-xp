@@ -1,0 +1,12 @@
+// Atribuições compostas += -= *= /= ++ — esperado: 7
+num n = 0;
+num acc = 10;
+
+func main() num {
+  n++;
+  n += 2;
+  n *= 2;
+  acc -= 3;
+  acc /= 7;
+  return n + acc;
+}

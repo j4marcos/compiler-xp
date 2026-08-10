@@ -1,0 +1,8 @@
+// error: return type mismatch
+func bad(num x) list {
+  return x;
+}
+
+func main() num {
+  return 1;
+}
