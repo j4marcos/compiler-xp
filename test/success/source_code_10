@@ -1,3 +1,4 @@
+// if / else — esperado: 4
 var x = 3;
 
 func main() {

@@ -1,3 +1,4 @@
+// print + if/while — esperado: 35 (e prints intermediários)
 var n = 10;
 var acc = 0;
 

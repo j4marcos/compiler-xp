@@ -1,3 +1,4 @@
+// Calls aninhadas — esperado: 45
 func add(a, b) {
   return a + b;
 }

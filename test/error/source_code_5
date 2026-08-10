@@ -1,3 +1,4 @@
+// Erro semântico (variável não declarada)
 var x = 7 + 4;
 
 func main() {

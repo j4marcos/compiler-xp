@@ -1,3 +1,4 @@
+// if em função + locals — esperado: 10
 func abs(x) {
   if x < 0 {
     return 0 - x;

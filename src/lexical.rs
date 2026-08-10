@@ -39,6 +39,11 @@ pub enum TokenClass {
     Number,
     Identifier,
     Attribution,
+    PlusEqual,
+    MinusEqual,
+    MulEqual,
+    DivEqual,
+    Increment,
 
     LeftParentheses,
     RightParentheses,
@@ -277,22 +282,70 @@ fn read_token(chars: &[char], read_index: usize, column: usize, line: usize) -> 
             ),
             read_index + 1,
         ),
-        '+' => (
-            Token::new(TokenClass::SumOperator, String::from("+"), column, line),
-            read_index + 1,
-        ),
-        '-' => (
-            Token::new(TokenClass::SubOperator, String::from("-"), column, line),
-            read_index + 1,
-        ),
-        '/' => (
-            Token::new(TokenClass::DivOperator, String::from("/"), column, line),
-            read_index + 1,
-        ),
-        '*' => (
-            Token::new(TokenClass::MulOperator, String::from("*"), column, line),
-            read_index + 1,
-        ),
+        '+' => {
+            if read_index + 1 < chars.len() && chars[read_index + 1] == '=' {
+                (
+                    Token::new(TokenClass::PlusEqual, String::from("+="), column, line),
+                    read_index + 2,
+                )
+            } else if read_index + 1 < chars.len() && chars[read_index + 1] == '+' {
+                (
+                    Token::new(TokenClass::Increment, String::from("++"), column, line),
+                    read_index + 2,
+                )
+            } else {
+                (
+                    Token::new(TokenClass::SumOperator, String::from("+"), column, line),
+                    read_index + 1,
+                )
+            }
+        }
+        '-' => {
+            if read_index + 1 < chars.len() && chars[read_index + 1] == '=' {
+                (
+                    Token::new(TokenClass::MinusEqual, String::from("-="), column, line),
+                    read_index + 2,
+                )
+            } else {
+                (
+                    Token::new(TokenClass::SubOperator, String::from("-"), column, line),
+                    read_index + 1,
+                )
+            }
+        }
+        '/' => {
+            if read_index + 1 < chars.len() && chars[read_index + 1] == '/' {
+                let mut end = read_index + 2;
+                while end < chars.len() && chars[end] != '\n' && chars[end] != '\r' {
+                    end += 1;
+                }
+                let lexema: String = chars[read_index..end].iter().collect();
+                (Token::new(TokenClass::Space, lexema, column, line), end)
+            } else if read_index + 1 < chars.len() && chars[read_index + 1] == '=' {
+                (
+                    Token::new(TokenClass::DivEqual, String::from("/="), column, line),
+                    read_index + 2,
+                )
+            } else {
+                (
+                    Token::new(TokenClass::DivOperator, String::from("/"), column, line),
+                    read_index + 1,
+                )
+            }
+        }
+        '*' => {
+            if read_index + 1 < chars.len() && chars[read_index + 1] == '=' {
+                (
+                    Token::new(TokenClass::MulEqual, String::from("*="), column, line),
+                    read_index + 2,
+                )
+            } else {
+                (
+                    Token::new(TokenClass::MulOperator, String::from("*"), column, line),
+                    read_index + 1,
+                )
+            }
+        }
         '%' => (
             Token::new(TokenClass::ModOperator, String::from("%"), column, line),
             read_index + 1,

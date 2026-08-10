@@ -470,6 +470,48 @@ fn get_attribution(tokens: &mut VecDeque<Token>) -> Command {
     }
 }
 
+fn get_compound_attribution(tokens: &mut VecDeque<Token>, operator: Operator) -> Command {
+    let Some(variable) = tokens.pop_front() else {
+        handle_sintax_error("Compound attribution without variable")
+    };
+    let variable_name = variable.get_lexema().to_string();
+    let expected = match operator {
+        Operator::Sum => TokenClass::PlusEqual,
+        Operator::Sub => TokenClass::MinusEqual,
+        Operator::Mul => TokenClass::MulEqual,
+        Operator::Div => TokenClass::DivEqual,
+        _ => unreachable!("invalid compound attribution operator"),
+    };
+    consume_token_class(tokens, expected);
+    let right = extract_expression(tokens);
+    consume_token_class(tokens, TokenClass::Semicolon);
+    Command::Attribution {
+        variable,
+        expression: Expression::BinOperation {
+            left_value: Box::new(Expression::Identifier(variable_name)),
+            operator,
+            right_value: Box::new(right),
+        },
+    }
+}
+
+fn get_increment(tokens: &mut VecDeque<Token>) -> Command {
+    let Some(variable) = tokens.pop_front() else {
+        handle_sintax_error("Increment without variable")
+    };
+    let variable_name = variable.get_lexema().to_string();
+    consume_token_class(tokens, TokenClass::Increment);
+    consume_token_class(tokens, TokenClass::Semicolon);
+    Command::Attribution {
+        variable,
+        expression: Expression::BinOperation {
+            left_value: Box::new(Expression::Identifier(variable_name)),
+            operator: Operator::Sum,
+            right_value: Box::new(Expression::NumberLiteral(1)),
+        },
+    }
+}
+
 fn read_call_parameters(tokens: &mut VecDeque<Token>, parameters: &mut Vec<Expression>) {
     skip_whitespace(tokens);
 
@@ -532,6 +574,11 @@ fn get_block_commands(tokens: &mut VecDeque<Token>) -> CodeBlock {
             TokenClass::CloseBlock => break,
             TokenClass::Identifier => match next_token_class(tokens, 1) {
                 Some(TokenClass::Attribution) => get_attribution(tokens),
+                Some(TokenClass::PlusEqual) => get_compound_attribution(tokens, Operator::Sum),
+                Some(TokenClass::MinusEqual) => get_compound_attribution(tokens, Operator::Sub),
+                Some(TokenClass::MulEqual) => get_compound_attribution(tokens, Operator::Mul),
+                Some(TokenClass::DivEqual) => get_compound_attribution(tokens, Operator::Div),
+                Some(TokenClass::Increment) => get_increment(tokens),
                 Some(TokenClass::LeftParentheses) => get_function_call(tokens),
                 _ => handle_sintax_error("wrong use of identifier"),
             },

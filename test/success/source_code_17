@@ -1,3 +1,4 @@
+// Um parâmetro — esperado: 42
 func double(x) {
   return x + x;
 }

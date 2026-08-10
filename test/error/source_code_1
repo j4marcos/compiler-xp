@@ -1,3 +1,4 @@
+// Erro sintático (expressão malformada)
 func main() {
   return 54 + x / 98 (4 + 2);
 }

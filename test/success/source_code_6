@@ -1,3 +1,4 @@
+// Variáveis globais (var) — esperado: 891
 var x123123 = 7 + 2;
 var abc = x123123 * 11;
 

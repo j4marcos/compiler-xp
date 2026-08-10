@@ -1,3 +1,4 @@
+// Erro semântico (uso antes da declaração)
 var x = 7 + y;
 var y = x * 11;
 

@@ -1,3 +1,4 @@
+// Erro semântico (função não declarada)
 func add(a, b) {
   return a + b;
 }

@@ -1,3 +1,4 @@
+// Variáveis globais (var) — esperado: 60467
 var x = (7 + 4) * 12;
 var y = x * 3 + 11;
 

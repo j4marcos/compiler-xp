@@ -19,7 +19,7 @@ O assembly é impresso no terminal e salvo em `output/target_code.s`.
 
 ### Linguagem Func
 
-Variação da Cmd com `func`/`var`, expressões booleanas (`and`, `or`, `not`), operadores `<=`, `>=`, `%`, `print`, e funções com parâmetros e variáveis locais. O programa deve ter `func main()` e o último comando de `main` deve ser um `return`.
+Variação da Cmd com `func`/`var`, expressões booleanas (`and`, `or`, `not`), operadores `<=`, `>=`, `%`, `+=`, `-=`, `*=`, `/=`, `++`, `print`, comentários de linha (`//` ignora o resto da linha), e funções com parâmetros e variáveis locais. O programa deve ter `func main()` e o último comando de `main` deve ser um `return`.
 
 ```
 <programa> ::= <decl>*
@@ -32,6 +32,11 @@ Variação da Cmd com `func`/`var`, expressões booleanas (`and`, `or`, `not`), 
 <if>         ::= 'if' <exp> '{' <cmd>* '}' 'else' '{' <cmd>* '}'
 <while>      ::= 'while' <exp> '{' <cmd>* '}'
 <atrib>      ::= <ident> '=' <exp> ';'
+             | <ident> '+=' <exp> ';'
+             | <ident> '-=' <exp> ';'
+             | <ident> '*=' <exp> ';'
+             | <ident> '/=' <exp> ';'
+             | <ident> '++' ';'
 <return>     ::= 'return' <exp> ';'
 <funcall>    ::= <ident> '(' <params>? ')'
 <params>     ::= <exp> | <exp> ',' <params>
@@ -124,7 +129,7 @@ Testes de sucesso
 -----------------
 
 ```sh
-for i in $(seq 1 22); do
+for i in $(seq 1 23); do
   cargo run test/success/source_code_$i
   as -o output/target_code.o output/target_code.s -Itemplates
   ld -o output/target_code output/target_code.o
@@ -132,26 +137,7 @@ for i in $(seq 1 22); do
 done
 ```
 
-| Arquivo | Cobre | Resultado esperado |
-|---------|--------|--------------------|
-| `1`–`3` | Aritmética e parênteses | `25`, `10065`, `2657` |
-| `4` | Precedência `*` `/` `%` vs `+` `-` | `91` |
-| `5`–`6` | Variáveis globais (`var`) | `60467`, `891` |
-| `7` | Comparações `==` `<` `>` `<=` `>=` | `1` |
-| `8` | `and` / `or` / `not` | `1` |
-| `9` | Módulo `%` | `2` |
-| `10` | `if` / `else` | `4` |
-| `11` | `while` | `3` |
-| `12` | `print` + `if`/`while` | `35` (e prints intermediários) |
-| `13` | Algoritmo (mdc) | `6` |
-| `14`–`15` | Resto por subtrações | `2` |
-| `16` | Função `add` + locals na `main` | `8` |
-| `17` | Um parâmetro | `42` |
-| `18` | Locais na pilha | `131714583` |
-| `19` | Recursão (`fat`) | `120` |
-| `20` | Calls aninhadas | `45` |
-| `21` | `if` em função + locals | `10` |
-| `22` | Função chamando outra | `25` |
+
 
 
 Testes de erro
@@ -160,16 +146,3 @@ Testes de erro
 ```sh
 for i in $(seq 1 10); do cargo run test/error/source_code_$i; done
 ```
-
-| Arquivo | Esperado |
-|---------|----------|
-| `1` | Erro sintático (expressão malformada) |
-| `2` | Erro léxico (caractere inválido) |
-| `3` | Erro semântico (arquivo vazio / sem `main`) |
-| `4` | Erro semântico (`main` sem `return` final) |
-| `5` | Erro semântico (variável não declarada) |
-| `6` | Erro semântico (uso antes da declaração) |
-| `7` | Erro semântico (variável redeclarada) |
-| `8` | Erro sintático (`if` sem `else`) |
-| `9` | Erro semântico (função não declarada) |
-| `10` | Erro semântico (programa sem `main`) |

@@ -1,3 +1,4 @@
+// Erro semântico (programa sem main)
 func add(a, b) {
   return a + b;
 }

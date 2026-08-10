@@ -1,3 +1,4 @@
+// Algoritmo (mdc) — esperado: 6
 var a = 18;
 var b = 12;
 var r = 0;

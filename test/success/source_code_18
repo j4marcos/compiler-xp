@@ -1,3 +1,4 @@
+// Locais na pilha — esperado: 131714583
 func f(x) {
   var y = x * x + 7;
   var z = y * x - 9;
