@@ -163,15 +163,7 @@ for i in $(seq 1 30); do
 done
 ```
 
-| Arquivo | Cobre | Resultado |
-|---------|--------|-----------|
-| `24`–`27` | list / len / push / alias / param | `3`, `14`, `2`, `5` |
-| `28` | método `x.abs()` | `3` |
-| `29` | chain `mult.push.sum` | `14` |
-| `30` | bool / text / `[]` | `246` |
-| `34` | `import` + `x.ss::count()` | `3` |
-| `35`–`36` | `lib/numbers.lib` | `42`, `12` |
-| `37`–`39` | `lib/lists.lib` (list/text) | `42`, `15`, `111` |
+
 
 
 Testes de erro
